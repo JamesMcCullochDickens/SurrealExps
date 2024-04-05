@@ -10,7 +10,7 @@ def get_dataset(cfg: dict, dl_kwargs: dict, train_d: dict) -> None:
         with_masking = cfg.get("with_masking", False)
         with_cropping = cfg.get("with_cropping", False)
         cropping_type = cfg.get("cropping_type", None)
-        interp_size = cfg.get("interp_size", (300, 200))
+        interp_size = cfg.get("interp_size", None)
         dataset_args = {"with_masking": with_masking, "with_cropping": with_cropping,
                         "cropping_type": cropping_type, "interp_size": interp_size}
         train_dataset_args, val_dataset_args, test_dataset_args = (dataset_args.copy(), dataset_args.copy(),

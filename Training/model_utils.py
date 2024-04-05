@@ -1,7 +1,7 @@
 import torch
 
 
-def set_model_all_trainable(model):
+def set_model_all_trainable(model: torch.nn.Module) -> None:
     for parameter in model.parameters():
         parameter.requires_grad = True
 

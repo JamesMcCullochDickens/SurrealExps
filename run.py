@@ -1,4 +1,5 @@
 import warnings
+
 warnings.filterwarnings('ignore')
 import data
 import os
@@ -36,7 +37,7 @@ def create_artifact_paths(model_dir, with_delete,
             "eval_results_fp": eval_results_fp}
 
 
-def train_and_test(train_d:dict) -> None:
+def train_and_test(train_d: dict) -> None:
     task = train_d["task"]
     if train_d["task"] == "human_seg":
         seg_train.train_launch(train_d)
@@ -73,12 +74,13 @@ if __name__ == "__main__":
     # create artefact paths
     model_save_dir = model_config_name[:-4] + "_" + train_config_name[:-4]
     with_delete = not with_load
-    train_d["save_fps"] = create_artifact_paths(model_dir=model_save_dir, with_delete=not with_load)
+    train_d["save_fps"] = create_artifact_paths(model_dir=model_save_dir,
+                                                with_delete=not with_load)
 
     # Loading and testing info
     train_builder.train_build_from_cfg(train_config, train_d)
     train_d["with_test"] = train_config["with_test"]
-    train_d["model_name"] = model_config_name[:-4] # remove .yml extension
+    train_d["model_name"] = model_config_name[:-4]  # remove .yml extension
     train_d["with_load"] = with_load
     train_d["only_test"] = only_test
 

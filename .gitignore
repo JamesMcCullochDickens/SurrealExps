@@ -1,11 +1,7 @@
-# Ignore .idea directory (PyCharm)
 .idea/
-
-# Ignore __pycache__ directory
 __pycache__/
-
-# Ignore .iml files
 *.iml
-
-# Ignore .pyc files
 *.pyc
+/Trained_Models
+/Trainings_Logs
+/Eval_Results

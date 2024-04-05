@@ -6,9 +6,11 @@ import glob
 import torch
 from torch.utils.data import Dataset, DataLoader
 from mat_proc import get_seg_mask_at_frame, get_person_bb
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import torch.nn.functional as F
 import random as r
+from PIL import Image
+import math
 
 dataset_outer_fp = data.dataset_outer_fp
 cwd = os.environ["cwd"]
@@ -26,6 +28,38 @@ def get_all_vid_mp4s(split_str: str) -> list[str]:
     fps = list(glob.iglob(outer_folder_fp + "/**/*.mp4", recursive=True))
     fps.sort()
     return fps
+
+
+def get_part_color_map() -> dict:
+    global part_d_num_to_str
+    keys = list(range(25))
+    color_d = {}
+    biases, gain, pow = [80, 160, 240], 2, 3
+    for key in keys:
+        r = int(math.pow((key+biases[0])*gain, pow)) % 255.0
+        g = int(math.pow((key+biases[1])*gain, pow)) % 255.0
+        b = int(math.pow((key+biases[2])*gain, pow)) % 255.0
+        color_d[key] = np.array([r, g, b], dtype=np.uint8)
+    return color_d
+
+
+def visualize(im: np.ndarray, mask: np.ndarray) -> None:
+    rgb_im = Image.fromarray(im)
+    rgb_im.show()
+    color_mask = np.zeros_like(rgb_im, dtype=np.uint8)
+    unique_vals = np.unique(mask)
+    color_d = get_part_color_map()
+    for val in unique_vals:
+        if val == 0:
+            continue
+        spatial_mask = mask == val
+        color_mask[spatial_mask, :] = color_d[val]
+    color_mask_im = Image.fromarray(color_mask)
+    color_mask_im.show()
+    rgb_mask = (0.65*im + 0.35*color_mask).astype(np.uint8)
+    rgb_mask_im = Image.fromarray(rgb_mask)
+    rgb_mask_im.show()
+
 
 
 def get_vid_frame_pairs(split: str, ratio: float = (1.0 / 15.0)) -> list[str]:
@@ -67,12 +101,12 @@ def get_seg_mask(vid_fp: str, frame_num: int) -> np.ndarray:
     return seg_mask
 
 
-def rgb_channel_normalize(frame: torch.Tensor) -> torch.Tensor:
-    f = torch.unsqueeze(frame, dim=0)
-    imagenet_means = torch.tensor([0.485, 0.456, 0.406], device=frame.device)
-    imagenet_stds = torch.tensor([0.229, 0.224, 0.225], device=frame.device)
-    f = (f - imagenet_means.view(1, -1, 1, 1)) / imagenet_stds.view(1, -1, 1, 1)
-    return f[0]
+def rgb_channel_normalize(f: torch.Tensor) -> torch.Tensor:
+    imagenet_means = [0.485, 0.456, 0.406]
+    imagenet_stds = [0.229, 0.224, 0.225]
+    for i in range(3):
+        f[i, :, :] = (f[i, :, :]-imagenet_means[i])/(imagenet_stds[i])
+    return f
 
 
 def interp_im_and_mask(im: torch.Tensor, mask: torch.Tensor,
@@ -87,9 +121,10 @@ def interp_im_and_mask(im: torch.Tensor, mask: torch.Tensor,
 class SurrealHumanSegDataset(Dataset):
     def __init__(self, split: str,
                  with_masking: bool = False,
-                 with_cropping: bool = True,
+                 with_cropping: bool = False,
                  cropping_type: str = "bb",
-                 interp_size: Tuple[int, int] = (300, 200)
+                 interp_size: Optional[Tuple[int, int]] = None,
+                 debug: bool = False
                  ):
         super().__init__()
         assert split in ["train", "val", "test"], "invalid split"
@@ -101,6 +136,9 @@ class SurrealHumanSegDataset(Dataset):
         self.cropping_type = cropping_type
         self.interp_size = interp_size
         self.vid_frame_fps = read_vid_frame_pairs(split)
+        if debug:
+            r.shuffle(self.vid_frame_fps)
+            self.vid_frame_fps = self.vid_frame_fps[:int(0.01 * len(self.vid_frame_fps))]
 
     def __len__(self):
         return len(self.vid_frame_fps)
@@ -112,9 +150,15 @@ class SurrealHumanSegDataset(Dataset):
         vid_fp, frame_num = self.vid_frame_fps[index]
         vid_fp = os.path.join(dataset_outer_fp, vid_fp[1:])
         vid_frame = vid_utils.get_frame_from_rgb_vid(vid_fp, frame_num)[0]  # shape H, W, 3
+        seg_mask = get_seg_mask(vid_fp, frame_num)
+
+        # sanity check
+        # visualize(vid_frame, seg_mask)
+
+        # preprocess rgb
         vid_frame = torch.tensor(vid_frame, dtype=torch.float).permute((-1, 0, 1)) / 255.0
         vid_frame = rgb_channel_normalize(vid_frame)
-        seg_mask = get_seg_mask(vid_fp, frame_num)
+
         if self.with_masking:
             zero_mask = torch.unsqueeze(seg_mask == 0, dim=0).repeat((3, 1, 1))
             vid_frame = zero_mask * vid_frame
@@ -132,8 +176,9 @@ class SurrealHumanSegDataset(Dataset):
                 bb = [x1, y1, x2, y2]
                 vid_frame = vid_frame[:, bb[1]:bb[3] + 1, bb[0]:bb[2] + 1]
                 seg_mask = seg_mask[bb[1]:bb[3] + 1, bb[0]:bb[2] + 1]
-        seg_mask = torch.tensor(seg_mask, dtype=torch.int)
-        vid_frame, seg_mask = interp_im_and_mask(vid_frame, seg_mask)
+        seg_mask = torch.tensor(seg_mask, dtype=torch.long)
+        if self.interp_size:
+            vid_frame, seg_mask = interp_im_and_mask(vid_frame, seg_mask, self.interp_size)
         return vid_frame, seg_mask
 
 
@@ -141,3 +186,15 @@ def get_surreal_human_seg_dl(dl_kwargs, dataset_kwargs):
     dataset = SurrealHumanSegDataset(**dataset_kwargs)
     dl = DataLoader(dataset=dataset, **dl_kwargs)
     return dl
+
+
+"""
+if __name__ == "__main__":
+    dl_kwargs = {"num_workers": 0, "batch_size": 1,
+                 "shuffle": False, "drop_last": True,
+                 "pin_memory": False}
+    dataset_kwargs = {"split": "train"}
+    dl = get_surreal_human_seg_dl(dl_kwargs, dataset_kwargs)
+    for data in dl:
+        debug = "debug"
+"""

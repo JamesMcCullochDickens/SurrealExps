@@ -1,0 +1,5 @@
+task: human_seg
+model_name: Deeplab_v3
+num_classes: 25
+in_channels: 3
+num_layers: 50

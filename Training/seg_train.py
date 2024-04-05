@@ -105,8 +105,8 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
         # sharded dataloaders
         if rank == 0:
             print("Getting distributed dataloaders and DPP model...")
-        train_sampler = DistributedSampler(train_dataloader.dataset, num_replicas=world_size, rank=rank, shuffle=True,
-                                           drop_last=True)
+        train_sampler = DistributedSampler(train_dataloader.dataset, num_replicas=world_size,
+                                           rank=rank, shuffle=True, drop_last=True)
         if "num_workers" not in train_d.keys():
             num_workers = cpu_core_count // world_size
         else:
@@ -178,16 +178,25 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
             else:
                 m_output = model(x)
 
-            if isinstance(m_output, dict):
-                m_output = m_output["out"]
-
-            loss = loss_fn(m_output, labels)
+            if isinstance(m_output, dict):  # out, aux, etc.
+                num_outputs = float(len(m_output.keys()))
+                for i, key in enumerate(m_output.keys()):
+                    if i == 0:
+                        loss = loss_fn(m_output[key], labels)
+                    else:
+                        loss = loss + loss_fn(m_output[key], labels)
+                loss = loss / num_outputs
+            else:
+                loss = loss_fn(m_output, labels)
 
             # backprop
             if with_16_bit_training:
                 scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
             else:
                 loss.backward()
+                optimizer.step()
 
             batch_loss = loss.item()
             iteration_losses.append(batch_loss)

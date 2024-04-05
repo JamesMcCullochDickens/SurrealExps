@@ -1,5 +1,5 @@
 # dataloader arguments
-batch_size: 48
+batch_size: 64
 num_workers: 6
 persistent_workers: true
 
@@ -9,7 +9,7 @@ dataset_name: Surreal_Human_Segmentation
 # optimizer
 optimizer_type: sgd
 base_lr: 0.001
-weight_decay: 0.0005
+weight_decay: 0.00005
 nesterov: true
 momentum: 0.90
 
