@@ -26,8 +26,9 @@ def train_launch(train_d: dict) -> None:
     num_gpus = torch.cuda.device_count()
     if train_d["with_ddp"] and num_gpus > 1:
         world_size = num_gpus
+        world_size = 2 # override for my specific case
         print("Spawning processes")
-        dist_utils.spawn_processes(fn=seg_train, args=(train_d,))
+        dist_utils.spawn_processes(fn=seg_train, args=(train_d, world_size))
     else:
        seg_train(rank=0, train_d=train_d, world_size=1)
 
@@ -35,7 +36,7 @@ def train_launch(train_d: dict) -> None:
 def init_seed(seed: float = 1.0) -> None:
     torch.cuda.manual_seed_all(seed)
     torch.manual_seed(seed)
-    np.random.seed(seed)
+    np.random.seed(int(seed))
     random.seed(seed)
     torch.backends.cudnn.deterministic = False
     torch.backends.cudnn.benchmark = True
@@ -115,10 +116,10 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
                 num_workers = train_d["num_workers"] // world_size
         train_dataset = train_dataloader.dataset
         train_dataloader = DataLoader(sampler=train_sampler, dataset=train_dataset,
-                                      batch_size=train_dataset.batch_size // world_size,
-                                      collate_fn=train_dataloader.collate_fn, shuffle=train_dataset.Shuffle,
+                                      batch_size=train_d["batch_size"] // world_size,
+                                      collate_fn=train_dataloader.collate_fn,
                                       num_workers=num_workers,
-                                      drop_last=train_dataset.drop_last,
+                                      drop_last=True,
                                       persistent_workers=num_workers > 0)
         if val_dataloader:
             val_dataset = val_dataloader.dataset
@@ -128,7 +129,7 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
             val_dataloader = DataLoader(sampler=val_sampler, dataset=val_dataset,
                                          batch_size=train_d["batch_size"] // world_size,
                                          collate_fn=val_dataloader.collate_fn,
-                                         shuffle=False, num_workers=1, drop_last=False,
+                                         num_workers=1, drop_last=False,
                                          persistent_workers=num_workers > 0)
         # ddp
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
@@ -139,13 +140,12 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
 
     # training parameters
     num_epochs = train_d["num_epochs"]
-    grad_mod = train_d["grad_mod"]
-    with_train_accuracy = train_d["with_train_acc"]
+    with_train_accuracy = train_d.get("with_train_accuracy", False)
     if with_train_accuracy:
         train_accs_per_epoch = []
     with_16_bit_training = train_d.get("with_16_bit_precision", False)
     sampling_mod = train_d["val_sampling_mod"]
-    starting_test_epoch = train_d["starting_test_epoch"]
+    starting_test_epoch = train_d["starting_val_epoch"]
     if with_16_bit_training:
         scaler = torch.cuda.amp.GradScaler()
 
@@ -178,33 +178,27 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
             else:
                 m_output = model(x)
 
+            if isinstance(m_output, dict):
+                m_output = m_output["out"]
+
             loss = loss_fn(m_output, labels)
 
             # backprop
             if with_16_bit_training:
                 scaler.scale(loss).backward()
-                if epoch_num % grad_mod == 0:
-                    scaler.step(optimizer)
-                    scaler.update()
             else:
                 loss.backward()
-                if epoch_num % grad_mod == 0:
-                    optimizer.step()
 
             batch_loss = loss.item()
             iteration_losses.append(batch_loss)
             epoch_loss += batch_loss
 
+        lrs.step()
+
+        # End of epoch stats
         if rank == 0:
             t2 = time.time()
             dif_in_mins = round((t2-t1)/60.0, 2)
-
-        # some learning rate schedulers in my code are functions, others are not
-        if callable(lrs):
-            lrs(optimizer, epoch_num)
-        else:
-            lrs.step()
-
         ave_epoch_loss = round(epoch_loss / (batch_num + 1), 3)
         if world_size == 1:
             epoch_overall_losses.append(epoch_loss)
@@ -274,11 +268,11 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
             # save the model and optimizer and number of epochs after each epoch
             if world_size == 1:
                 model_utils.save_model_during_training(epoch=epoch_num, model=model, optimizer=optimizer,
-                                                   lr_scheduler=None if callable(lrs) else lrs, logs_dict=logs_dict,
+                                                   lr_scheduler=lrs, logs_dict=logs_dict,
                                                    save_path=model_save_fp)
             else:
                 model_utils.save_model_during_training(epoch=epoch_num, model=model.module, optimizer=optimizer,
-                                                   lr_scheduler=None if callable(lrs) else lrs, logs_dict=logs_dict,
+                                                   lr_scheduler=lrs, logs_dict=logs_dict,
                                                    save_path=model_save_fp)
 
     if rank == 0:

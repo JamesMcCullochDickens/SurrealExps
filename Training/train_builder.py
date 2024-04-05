@@ -5,7 +5,7 @@ import Training.loss_functions as loss_functions
 
 
 def get_dataset(cfg: dict, dl_kwargs: dict, train_d: dict) -> None:
-    dataset_name = cfg["dataset"]
+    dataset_name = cfg["dataset_name"]
     if dataset_name == "Surreal_Human_Segmentation":
         with_masking = cfg.get("with_masking", False)
         with_cropping = cfg.get("with_cropping", False)
@@ -17,7 +17,7 @@ def get_dataset(cfg: dict, dl_kwargs: dict, train_d: dict) -> None:
                                                                    dataset_args.copy())
         train_dataset_args["split"] = "train"
         test_dataset_args["split"] = "test"
-        val_dataset_args["val"] = "val"
+        val_dataset_args["split"] = "val"
         dl_kwargs["shuffle"] = True
         dl_kwargs["drop_last"] = True
         train_d["train_dl"] = sh_seg_dl.get_surreal_human_seg_dl(dl_kwargs, train_dataset_args)
@@ -34,18 +34,21 @@ def get_dataset(cfg: dict, dl_kwargs: dict, train_d: dict) -> None:
 
 
 def get_optimizer(cfg: dict, train_d: dict) -> None:
-    # get the optimizer
-    if cfg["optimizer_type"] == "sgd":
+    optimizer_name = cfg["optimizer_type"]
+    if optimizer_name == "sgd":
         base_lr = cfg["base_lr"]
         weight_decay = cfg["weight_decay"]
         nesterov = cfg["nesterov"]
         momentum = cfg["momentum"]
         optim = optimizers.get_sgd_optim(model=train_d["model"], base_lr=base_lr, weight_decay=weight_decay,
                                      nesterov=nesterov, momentum=momentum)
-    elif cfg["optimizer_type"] == "adamw":
+    elif optimizer_name == "adamw":
         base_lr = cfg["base_lr"]
         weight_decay = cfg["weight_decay"]
         optim = optimizers.get_adamw_optim(train_d["model"], base_lr=base_lr, weight_decay=weight_decay)
+    else:
+        print(f"Optimizer {optimizer_name} is not supported.")
+        exit(-1)
     train_d["optimizer"] = optim
 
 
@@ -65,7 +68,7 @@ def get_lrs(cfg: dict, train_d: dict) -> None:
 
 
 def get_loss_function(cfg: dict, train_d: dict) -> None:
-    lf_name = cfg["loss_function"]
+    lf_name = cfg["loss_fn"]
     if lf_name == "cross_entropy":
         label_smoothing = cfg.get("label_smoothing", 0.0)
         ignore_index = cfg.get("ignore_index", -100)
@@ -76,6 +79,7 @@ def get_loss_function(cfg: dict, train_d: dict) -> None:
         loss_fn = loss_functions.get_dice_loss(smooth)
     else:
         print(f"Loss function {lf_name} not supported.")
+        exit(-1)
     train_d["loss_fn"] = loss_fn
 
 
@@ -84,9 +88,10 @@ def train_build_from_cfg(cfg: dict, train_d: dict) -> None:
     batch_size = cfg["batch_size"]
     num_workers = cfg.get("num_workers", 0)
     persistent_workers = num_workers != 0
-    pinned_memory = cfg.get("pinned_memory", False)
+    pin_memory = cfg.get("pin_memory", False)
     dl_kwargs = {"batch_size": batch_size, "num_workers": num_workers,
-                 "persistent_workers": persistent_workers, "pinned_memory": pinned_memory}
+                 "persistent_workers": persistent_workers, "pin_memory": pin_memory}
+    train_d["batch_size"] = batch_size
 
     # dataset
     get_dataset(cfg, dl_kwargs, train_d)

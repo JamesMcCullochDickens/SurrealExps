@@ -8,12 +8,12 @@ import General_Utils.read_yaml as read_yaml
 import Training.train_builder as train_builder
 import Training.seg_train as seg_train
 
-model_configs_outer_path = os.path.join(os.getcwd(), "Configs/Model_Configs")
-train_configs_outer_path = os.path.join(os.getcwd(), "Configs/Train_Configs")
+model_configs_outer_path = os.path.join(os.environ["cwd"], "Model_Configs")
+train_configs_outer_path = os.path.join(os.environ["cwd"], "Train_Configs")
 
 
 def create_artifact_paths(model_dir, with_delete,
-                          outer_path=os["cwd"]):
+                          outer_path=os.environ["cwd"]):
     # trained models
     trained_models_outer_fp = os.path.join(outer_path, "Trained_Models")
     trained_models_fp = os.path.join(outer_path, "Trained_Models", model_dir)
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     train_config_path = os.path.join(train_configs_outer_path, train_config_name)
     assert os.path.exists(train_config_path), "No such train config path exists"
     train_config = read_yaml.yml_to_dict(train_config_path)
-    train_d["model"] = model_builder.from_config(model_cfg, train_d)
+    model_builder.get_model_from_cfg(model_cfg, train_d)
     print("Model built from config.")
 
     overall_cfg = {**model_cfg, **train_config}
@@ -73,16 +73,10 @@ if __name__ == "__main__":
     # create artefact paths
     model_save_dir = model_config_name[:-4] + "_" + train_config_name[:-4]
     with_delete = not with_load
-    if with_delete:
-        inp = input("Are you sure you want to delete the previous "
-                    "directories (if they exist). Enter Y for yes, anything otherwise")
-        if inp not in ["Y", "yes", "y", "Yes"]:
-            exit()
     train_d["save_fps"] = create_artifact_paths(model_dir=model_save_dir, with_delete=not with_load)
 
-
     # Loading and testing info
-    train_d = train_builder.train_build_from_cfg(train_config, train_d)
+    train_builder.train_build_from_cfg(train_config, train_d)
     train_d["with_test"] = train_config["with_test"]
     train_d["model_name"] = model_config_name[:-4] # remove .yml extension
     train_d["with_load"] = with_load

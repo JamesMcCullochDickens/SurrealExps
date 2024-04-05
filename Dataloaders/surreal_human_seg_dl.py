@@ -13,6 +13,13 @@ import random as r
 dataset_outer_fp = data.dataset_outer_fp
 cwd = os.environ["cwd"]
 
+sorted_parts = ['hips', 'leftUpLeg', 'rightUpLeg', 'spine', 'leftLeg', 'rightLeg',
+                'spine1', 'leftFoot', 'rightFoot', 'spine2', 'leftToeBase', 'rightToeBase',
+                'neck', 'leftShoulder', 'rightShoulder', 'head', 'leftArm', 'rightArm',
+                'leftForeArm', 'rightForeArm', 'leftHand', 'rightHand', 'leftHandIndex1', 'rightHandIndex1']
+part_d_str_to_num = {k: v for v, k in enumerate(sorted_parts)}
+part_d_num_to_str = {v: k for (k, v) in part_d_str_to_num.items()}
+
 
 def get_all_vid_mp4s(split_str: str) -> list[str]:
     outer_folder_fp = os.path.join(dataset_outer_fp, split_str)
@@ -44,7 +51,7 @@ def write_vid_frame_pairs() -> None:
         vf_pairs = get_vid_frame_pairs(split)
         save_txt_fp = os.path.join(outer_save_fp, split + ".txt")
         with open(save_txt_fp, "w") as f:
-            f.writelines([vf_pair+"\n" for vf_pair in vf_pairs])
+            f.writelines([vf_pair + "\n" for vf_pair in vf_pairs])
 
 
 def read_vid_frame_pairs(split: str) -> List[Tuple[str, int]]:
@@ -54,13 +61,13 @@ def read_vid_frame_pairs(split: str) -> List[Tuple[str, int]]:
     return pairs
 
 
-def get_seg_mask(vid_fp:str, frame_num:int) -> np.ndarray:
+def get_seg_mask(vid_fp: str, frame_num: int) -> np.ndarray:
     seg_mask_fp = vid_fp.replace(".mp4", "_segm.mat")
     seg_mask = get_seg_mask_at_frame(seg_mask_fp, frame_num)
     return seg_mask
 
 
-def rgb_channel_normalize(frame: torch.Tensor)-> torch.Tensor:
+def rgb_channel_normalize(frame: torch.Tensor) -> torch.Tensor:
     f = torch.unsqueeze(frame, dim=0)
     imagenet_means = torch.tensor([0.485, 0.456, 0.406], device=frame.device)
     imagenet_stds = torch.tensor([0.229, 0.224, 0.225], device=frame.device)
@@ -70,10 +77,10 @@ def rgb_channel_normalize(frame: torch.Tensor)-> torch.Tensor:
 
 def interp_im_and_mask(im: torch.Tensor, mask: torch.Tensor,
                        inter_shape: Tuple[int, int] = (300, 200)):
-    im = torch.unsqueeze(im, dim=1)
+    im = torch.unsqueeze(im, dim=0)
     im = F.interpolate(im, size=inter_shape, mode="bilinear")[0]
-    mask = torch.unsqueeze(torch.unsqueeze(mask, 1), 1).float()
-    mask = F.interpolate(mask, size=inter_shape, mode="nearest")[0][0].int()
+    mask = torch.unsqueeze(torch.unsqueeze(mask, 0), 0).float()
+    mask = F.interpolate(mask, size=inter_shape, mode="nearest")[0][0].long()
     return im, mask
 
 
@@ -86,7 +93,8 @@ class SurrealHumanSegDataset(Dataset):
                  ):
         super().__init__()
         assert split in ["train", "val", "test"], "invalid split"
-        assert cropping_type in ["bb", "random"]
+        if cropping_type is not None:
+            assert cropping_type in ["bb", "random"]
         self.is_train = split == "test"
         self.with_masking = with_masking
         self.with_cropping = with_cropping
@@ -103,8 +111,8 @@ class SurrealHumanSegDataset(Dataset):
     def __getitem__(self, index):
         vid_fp, frame_num = self.vid_frame_fps[index]
         vid_fp = os.path.join(dataset_outer_fp, vid_fp[1:])
-        vid_frame = vid_utils.get_frame_from_rgb_vid(vid_fp, frame_num)[0] # shape H, W, 3
-        vid_frame = torch.tensor(vid_frame, dtype=torch.float).permute((-1, 0, 1))/255.0
+        vid_frame = vid_utils.get_frame_from_rgb_vid(vid_fp, frame_num)[0]  # shape H, W, 3
+        vid_frame = torch.tensor(vid_frame, dtype=torch.float).permute((-1, 0, 1)) / 255.0
         vid_frame = rgb_channel_normalize(vid_frame)
         seg_mask = get_seg_mask(vid_fp, frame_num)
         if self.with_masking:
@@ -113,14 +121,14 @@ class SurrealHumanSegDataset(Dataset):
         if self.with_cropping:
             if self.cropping_type == "bb":
                 bb = get_person_bb(seg_mask)
-                vid_frame = vid_frame[:, bb[1]:bb[3]+1, bb[0]:bb[2]+1]
-                seg_mask = seg_mask[bb[1]:bb[3]+1, bb[0]:bb[2]+1]
+                vid_frame = vid_frame[:, bb[1]:bb[3] + 1, bb[0]:bb[2] + 1]
+                seg_mask = seg_mask[bb[1]:bb[3] + 1, bb[0]:bb[2] + 1]
             else:
                 h, w = vid_frame.shape[1:]
-                x1 = r.randint(0, w//2)
-                x2 = r.randint(w // 2, w-1)
-                y1 = r.randint(0, h//2)
-                y2 = r.randint(h//2, h-1)
+                x1 = r.randint(0, w // 2)
+                x2 = r.randint(w // 2, w - 1)
+                y1 = r.randint(0, h // 2)
+                y2 = r.randint(h // 2, h - 1)
                 bb = [x1, y1, x2, y2]
                 vid_frame = vid_frame[:, bb[1]:bb[3] + 1, bb[0]:bb[2] + 1]
                 seg_mask = seg_mask[bb[1]:bb[3] + 1, bb[0]:bb[2] + 1]
