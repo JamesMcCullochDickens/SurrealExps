@@ -1,0 +1,4 @@
+task: human_seg
+model_name: LRASPP
+num_classes: 25
+in_channels: 3

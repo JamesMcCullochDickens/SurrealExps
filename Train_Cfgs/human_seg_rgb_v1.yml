@@ -1,0 +1,29 @@
+# dataloader arguments
+batch_size: 64
+num_workers: 4
+persistent_workers: true
+
+# dataset
+dataset_name: Surreal_Human_Segmentation
+
+# optimizer
+optimizer_type: sgd
+base_lr: 0.001
+weight_decay: 0.0005
+nesterov: true
+momentum: 0.90
+
+# learning rate scheduler
+lrs_scheduler: cosine_annealing
+min_learning_rate: 0.0
+
+# loss function
+loss_fn: CrossEntropyLoss
+label_smoothing: 0.0
+
+# training info
+with_ddp: true
+num_epochs: 15
+with_validation: true
+with_train_accuracy: false
+starting_val_epoch: 7
