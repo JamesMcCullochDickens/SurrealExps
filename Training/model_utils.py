@@ -6,7 +6,7 @@ def set_model_all_trainable(model: torch.nn.Module) -> None:
         parameter.requires_grad = True
 
 
-def load_model_from_save(model_save_path, model):
+def load_model_from_save(model_save_path: str, model: torch.nn.Module) -> torch.nn.Module:
     checkpoint = torch.load(model_save_path)
     model.load_state_dict(checkpoint['model_sd'])
     return model
@@ -36,7 +36,7 @@ def convert_ddp_sd(sd):
     return new_sd
 
 
-def load_from_ddp(model_save_path, model):
+def load_from_ddp(model_save_path: str, model: torch.nn.Module) -> torch.nn.Module:
     checkpoint = torch.load(model_save_path)
     saved_sd = checkpoint["model_sd"]
     converted_sd = convert_ddp_sd(saved_sd)

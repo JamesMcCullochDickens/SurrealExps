@@ -19,14 +19,13 @@ min_learning_rate: 0.0
 
 # loss function
 loss_fn: cross_entropy
-label_smoothing: 0.0
 
 # training info
 with_ddp: true
-num_epochs: 15
+num_epochs: 8
 with_validation: true
 with_train_accuracy: false
-starting_val_epoch: 7
+starting_val_epoch: 1
 
 # testing info
 with_test: true

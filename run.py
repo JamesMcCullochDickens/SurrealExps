@@ -8,6 +8,7 @@ import Models.model_builder as model_builder
 import General_Utils.read_yaml as read_yaml
 import Training.train_builder as train_builder
 import Training.seg_train as seg_train
+import Evaluation.seg_eval as seg_eval
 
 model_configs_outer_path = os.path.join(os.environ["cwd"], "Model_Configs")
 train_configs_outer_path = os.path.join(os.environ["cwd"], "Train_Configs")
@@ -45,7 +46,7 @@ def train_and_test(train_d: dict) -> None:
         print(f"Task {task} not supported.")
 
     if train_d["with_test"]:
-        exit()  # TODO add evaluation code
+        seg_eval.seg_eval(train_d, is_val=False)
 
 
 if __name__ == "__main__":

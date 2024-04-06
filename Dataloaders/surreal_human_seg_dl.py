@@ -15,12 +15,12 @@ import math
 dataset_outer_fp = data.dataset_outer_fp
 cwd = os.environ["cwd"]
 
-sorted_parts = ['hips', 'leftUpLeg', 'rightUpLeg', 'spine', 'leftLeg', 'rightLeg',
+sorted_parts = ['background', 'hips', 'leftUpLeg', 'rightUpLeg', 'spine', 'leftLeg', 'rightLeg',
                 'spine1', 'leftFoot', 'rightFoot', 'spine2', 'leftToeBase', 'rightToeBase',
                 'neck', 'leftShoulder', 'rightShoulder', 'head', 'leftArm', 'rightArm',
                 'leftForeArm', 'rightForeArm', 'leftHand', 'rightHand', 'leftHandIndex1', 'rightHandIndex1']
-part_d_str_to_num = {k: v for v, k in enumerate(sorted_parts)}
-part_d_num_to_str = {v: k for (k, v) in part_d_str_to_num.items()}
+class_mapping_num_to_str = {i: k for (i, k) in enumerate(sorted_parts)}
+class_mapping_str_to_num = {v: k for (k, v) in class_mapping_num_to_str.items()}
 
 
 def get_all_vid_mp4s(split_str: str) -> list[str]:
@@ -59,7 +59,6 @@ def visualize(im: np.ndarray, mask: np.ndarray) -> None:
     rgb_mask = (0.65*im + 0.35*color_mask).astype(np.uint8)
     rgb_mask_im = Image.fromarray(rgb_mask)
     rgb_mask_im.show()
-
 
 
 def get_vid_frame_pairs(split: str, ratio: float = (1.0 / 15.0)) -> list[str]:

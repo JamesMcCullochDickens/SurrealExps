@@ -15,18 +15,32 @@ def get_dataset(cfg: dict, dl_kwargs: dict, train_d: dict) -> None:
                         "cropping_type": cropping_type, "interp_size": interp_size}
         train_dataset_args, val_dataset_args, test_dataset_args = (dataset_args.copy(), dataset_args.copy(),
                                                                    dataset_args.copy())
+        val_dl_kwargs = dl_kwargs.copy()
+        test_dl_kwargs = dl_kwargs.copy()
+
+        # training and validation dataloaders
         train_dataset_args["split"] = "train"
         test_dataset_args["split"] = "test"
         val_dataset_args["split"] = "val"
         dl_kwargs["shuffle"] = True
         dl_kwargs["drop_last"] = True
+        val_dl_kwargs["shuffle"] = False
+        val_dl_kwargs["drop_last"] = False
+        val_dl_kwargs["batch_size"] = 1
         train_d["train_dl"] = sh_seg_dl.get_surreal_human_seg_dl(dl_kwargs, train_dataset_args)
-        train_d["val_dl"] = sh_seg_dl.get_surreal_human_seg_dl(dl_kwargs, val_dataset_args)
-        test_dl_kwargs = dl_kwargs.copy()
+        train_d["val_dl"] = sh_seg_dl.get_surreal_human_seg_dl(val_dl_kwargs, val_dataset_args)
+
+        # test dataloader
         test_dl_kwargs["shuffle"] = False
         test_dl_kwargs["drop_last"] = False
+        test_dl_kwargs["batch_size"] = 1
+        test_dataset_args["interp_size"] = None
         train_d["test_dl"] = sh_seg_dl.get_surreal_human_seg_dl(test_dl_kwargs, test_dataset_args)
+        train_d["eval_resolution"] = (240, 320)
 
+        # class mapping
+        train_d["class_mapping_str_to_num"] = sh_seg_dl.class_mapping_str_to_num
+        train_d["class_mapping_num_to_str"] = sh_seg_dl.class_mapping_num_to_str
     else:
         print(f"Dataset {dataset_name} not supported.")
 

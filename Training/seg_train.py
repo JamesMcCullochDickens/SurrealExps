@@ -13,6 +13,7 @@ import time
 import tqdm
 import Training.optimizers as optims
 import Training.model_utils as model_utils
+import Evaluation.seg_eval as seg_eval
 
 
 def setup(rank: int, world_size: int) -> None:
@@ -121,16 +122,6 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
                                       num_workers=num_workers,
                                       drop_last=True,
                                       persistent_workers=num_workers > 0)
-        if val_dataloader:
-            val_dataset = val_dataloader.dataset
-            val_sampler = DistributedSampler(val_dataloader.dataset, num_replicas=world_size, rank=rank,
-                                              shuffle=False,
-                                              drop_last=False)
-            val_dataloader = DataLoader(sampler=val_sampler, dataset=val_dataset,
-                                         batch_size=train_d["batch_size"] // world_size,
-                                         collate_fn=val_dataloader.collate_fn,
-                                         num_workers=1, drop_last=False,
-                                         persistent_workers=num_workers > 0)
         # ddp
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = DDP(model, device_ids=[rank], output_device=rank,
@@ -144,8 +135,7 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
     if with_train_accuracy:
         train_accs_per_epoch = []
     with_16_bit_training = train_d.get("with_16_bit_precision", False)
-    sampling_mod = train_d["val_sampling_mod"]
-    starting_test_epoch = train_d["starting_val_epoch"]
+    starting_val_epoch = train_d["starting_val_epoch"]
     if with_16_bit_training:
         scaler = torch.cuda.amp.GradScaler()
 
@@ -240,40 +230,34 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
             print(f"The overall loss for epoch {epoch_num} is {round(epoch_loss, 3)}")
 
         if with_train_accuracy:
-            pass # TODO complete
-            """
+            train_d["model"] = model
+            mIoU = seg_eval.seg_eval(train_d, train_dataloader)
             if rank == 0:
-                print(f"The train accuracy for epoch {epoch_num} is {t_acc}\n")
-                train_accs_per_epoch.append(t_acc)
-            """
+                print(f"The mean IOU for epoch {epoch_num} on the training set is {mIoU}.\n")
+                train_accs_per_epoch.append(mIoU)
+            model.train()
 
-        # test the model every sampling epoch after the starting epoch
+        # validate the model every sampling epoch after the starting epoch
         if val_dataloader:
-            if epoch_num >= starting_test_epoch and epoch_num % sampling_mod == 0:
-                pass # TODO complete
-                """
+            if epoch_num >= starting_val_epoch:
                 if rank == 0:
-                    print(f"The test accuracy for epoch {epoch_num} is {t_acc}\n")
-                    test_accuracy_vals.append(round(t_acc, 3))
+                    train_d["model"] = model
+                    mIoU = seg_eval.seg_eval(train_d, val_dataloader)
+                    print(f"The mean IOU for epoch {epoch_num} on the validation set is {mIoU}.\n")
                     test_epochs.append(epoch_num)
-                    if t_acc > best_test_accuracy:
-                        best_test_accuracy = t_acc
+                    if mIoU > best_test_accuracy:
+                        best_test_accuracy = mIoU
                         if world_size == 1:
                             model_utils.save_model_only_during_training(model, model_save_fp + "_best")
                         else:
                             model_utils.save_model_only_during_training(model.module, model_save_fp + "_best")
                 model.train()
-                """
 
         # logging and model saving
         if rank == 0:
-            logs_dict = {}
-            logs_dict["epoch_overall_losses"] = epoch_overall_losses
-            logs_dict["epoch_average_losses"] = epoch_average_losses
-            logs_dict["iteration_losses"] = iteration_losses
-            logs_dict["test_accuracy_vals"] = test_accuracy_vals
-            logs_dict["test_epochs"] = test_epochs
-            logs_dict["best_test_accuracy"] = best_test_accuracy
+            logs_dict = {"epoch_overall_losses": epoch_overall_losses, "epoch_average_losses": epoch_average_losses,
+                         "iteration_losses": iteration_losses, "test_accuracy_vals": test_accuracy_vals,
+                         "test_epochs": test_epochs, "best_test_accuracy": best_test_accuracy}
             # save the model and optimizer and number of epochs after each epoch
             if world_size == 1:
                 model_utils.save_model_during_training(epoch=epoch_num, model=model, optimizer=optimizer,
@@ -283,6 +267,7 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
                 model_utils.save_model_during_training(epoch=epoch_num, model=model.module, optimizer=optimizer,
                                                    lr_scheduler=lrs, logs_dict=logs_dict,
                                                    save_path=model_save_fp)
+            train_d["model_latest_epoch"] = model
 
     if rank == 0:
         overall_t2 = time.time()
