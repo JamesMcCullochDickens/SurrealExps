@@ -22,8 +22,7 @@ lrs_scheduler: cosine_annealing
 min_learning_rate: 0.0
 
 # loss function
-loss_fn: cross_entropy
-with_ce_weights: true
+loss_fn: sampled_cross_entropy
 
 # training info
 with_ddp: true

@@ -101,6 +101,9 @@ def get_loss_function(cfg: dict, train_d: dict) -> None:
         else:
             ce_weights = None
         loss_fn = loss_functions.get_ce_loss(label_smoothing, ignore_index, ce_weights)
+    elif lf_name == "sampled_cross_entropy":
+        samples_per_im = cfg.get("num_samples", 5000)
+        loss_fn = loss_functions.sampled_ce_loss(samples_per_im)
     elif lf_name == "dice_loss":
         smooth = cfg.get("smooth", 1.0)
         loss_fn = loss_functions.get_dice_loss(smooth)
