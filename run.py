@@ -1,5 +1,4 @@
 import warnings
-
 warnings.filterwarnings('ignore')
 import data
 import os
@@ -15,7 +14,7 @@ train_configs_outer_path = os.path.join(os.environ["cwd"], "Train_Configs")
 
 
 def create_artifact_paths(model_dir, with_delete,
-                          outer_path=os.environ["cwd"]):
+                          outer_path=data.cwd):
     # trained models
     trained_models_outer_fp = os.path.join(outer_path, "Trained_Models")
     trained_models_fp = os.path.join(outer_path, "Trained_Models", model_dir)
@@ -40,10 +39,11 @@ def create_artifact_paths(model_dir, with_delete,
 
 def train_and_test(train_d: dict) -> None:
     task = train_d["task"]
-    if train_d["task"] == "human_seg":
-        seg_train.train_launch(train_d)
-    else:
-        print(f"Task {task} not supported.")
+    if not train_d["only_test"]:
+        if task == "human_seg":
+            seg_train.train_launch(train_d)
+        else:
+            print(f"Task {task} not supported.")
 
     if train_d["with_test"]:
         seg_eval.seg_eval(train_d, is_val=False)
@@ -51,7 +51,7 @@ def train_and_test(train_d: dict) -> None:
 
 if __name__ == "__main__":
     model_config_name = "LRASPP_rgb_seg.yml"
-    train_config_name = "human_seg_rgb_v1.yml"
+    train_config_name = "human_seg_rgb_v2.yml"
     with_load = False
     only_test = False
 

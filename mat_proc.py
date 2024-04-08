@@ -7,9 +7,11 @@ def load_mat(mat_fp: str) -> dict:
     return mat
 
 
-def get_person_bb(arr:np.ndarray) -> np.ndarray:
+def get_person_bb(arr: np.ndarray) -> np.ndarray:
     bb = np.empty((4,), dtype=int)
     non_zero_indices = np.nonzero(arr)
+    if not non_zero_indices[0].shape[0]:
+        return None
     bb[0] = np.min(non_zero_indices[1])
     bb[2] = np.max(non_zero_indices[1])
     bb[1] = np.min(non_zero_indices[0])
@@ -53,7 +55,7 @@ def get_depth_ims(mat: dict) -> np.ndarray:
     return depth_ims
 
 
-def get_person_bbs(seg_masks:np.ndarray) -> np.ndarray:
+def get_person_bbs(seg_masks: np.ndarray) -> np.ndarray:
     nf = seg_masks.shape[0]
     person_bbs = np.empty((nf, 4), dtype=int)
     for fn in range(nf):

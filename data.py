@@ -7,3 +7,4 @@ with open(os.path.join(cwd, "Dataset_Location.txt"), "r") as f:
     lines = f.readlines()
 lines = [line.replace("\n", "") for line in lines]
 dataset_outer_fp = lines[0]
+frames_outer_fp = lines[1]

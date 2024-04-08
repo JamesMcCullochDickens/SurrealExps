@@ -1,14 +1,18 @@
 # dataloader arguments
 batch_size: 128
-num_workers: 12
+num_workers: 16
 persistent_workers: true
+pin_memory: true
 
 # dataset
 dataset_name: Surreal_Human_Segmentation
+with_cropping: True
+cropping_type: bb
+interp_size: [240, 320]
 
 # optimizer
 optimizer_type: sgd
-base_lr: 0.01
+base_lr: 0.001
 weight_decay: 0.00005
 nesterov: true
 momentum: 0.90
@@ -19,7 +23,7 @@ min_learning_rate: 0.0
 
 # loss function
 loss_fn: cross_entropy
-ignore_index: 0
+with_ce_weights: true
 
 # training info
 with_ddp: true
@@ -27,6 +31,8 @@ num_epochs: 30
 with_validation: true
 with_train_accuracy: false
 starting_val_epoch: 1
+with_16_bit_precision: true
 
 # testing info
 with_test: true
+test_background: true

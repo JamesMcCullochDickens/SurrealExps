@@ -161,23 +161,32 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
             x = data[0].to(rank)
             labels = data[1].to(rank)
 
-            # model output
+            # model output and loss computation
             if with_16_bit_training:
                 with torch.cuda.amp.autocast():
                     m_output = model(x)
+                    if isinstance(m_output, dict):  # out, aux, etc.
+                        num_outputs = float(len(m_output.keys()))
+                        for i, key in enumerate(m_output.keys()):
+                            if i == 0:
+                                loss = loss_fn(m_output[key], labels)
+                            else:
+                                loss = loss + loss_fn(m_output[key], labels)
+                        loss = loss / num_outputs
+                    else:
+                        loss = loss_fn(m_output, labels)
             else:
                 m_output = model(x)
-
-            if isinstance(m_output, dict):  # out, aux, etc.
-                num_outputs = float(len(m_output.keys()))
-                for i, key in enumerate(m_output.keys()):
-                    if i == 0:
-                        loss = loss_fn(m_output[key], labels)
-                    else:
-                        loss = loss + loss_fn(m_output[key], labels)
-                loss = loss / num_outputs
-            else:
-                loss = loss_fn(m_output, labels)
+                if isinstance(m_output, dict):  # out, aux, etc.
+                    num_outputs = float(len(m_output.keys()))
+                    for i, key in enumerate(m_output.keys()):
+                        if i == 0:
+                            loss = loss_fn(m_output[key], labels)
+                        else:
+                            loss = loss + loss_fn(m_output[key], labels)
+                    loss = loss / num_outputs
+                else:
+                    loss = loss_fn(m_output, labels)
 
             # backprop
             if with_16_bit_training:
@@ -239,11 +248,11 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
 
         # validate the model every sampling epoch after the starting epoch
         if val_dataloader:
-            if epoch_num >= starting_val_epoch:
+            if (epoch_num+1) >= starting_val_epoch:
                 if rank == 0:
                     train_d["model"] = model
                     mIoU = seg_eval.seg_eval(train_d, val_dataloader)
-                    print(f"The mean IOU for epoch {epoch_num} on the validation set is {mIoU}.\n")
+                    print(f"The mean IOU for epoch {epoch_num} on the validation set is {mIoU} percent.\n")
                     test_epochs.append(epoch_num)
                     if mIoU > best_test_accuracy:
                         best_test_accuracy = mIoU
@@ -267,7 +276,6 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
                 model_utils.save_model_during_training(epoch=epoch_num, model=model.module, optimizer=optimizer,
                                                    lr_scheduler=lrs, logs_dict=logs_dict,
                                                    save_path=model_save_fp)
-            train_d["model_latest_epoch"] = model
 
     if rank == 0:
         overall_t2 = time.time()
