@@ -104,22 +104,43 @@ def get_part_color_map() -> dict:
     return color_d
 
 
-def visualize(im: np.ndarray, mask: np.ndarray) -> None:
-    rgb_im = Image.fromarray(im)
-    rgb_im.show()
-    color_mask = np.zeros_like(rgb_im, dtype=np.uint8)
-    unique_vals = np.unique(mask)
+def mask_to_color_im(mask: np.ndarray) -> np.ndarray:
+    color_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
     color_d = get_part_color_map()
+    unique_vals = np.unique(mask)
     for val in unique_vals:
         if val == 0:
             continue
         spatial_mask = mask == val
         color_mask[spatial_mask, :] = color_d[val]
+    return color_mask
+
+
+def visualize(im: np.ndarray, mask_: np.ndarray) -> None:
+    im_ = im.copy()
+    mask = mask_.copy()
+    if im.shape[0] == 3:
+        im_ = np.transpose(im, (1, 2, 0))
+    rgb_im = Image.fromarray(im_)
+    rgb_im.show()
+    color_mask = mask_to_color_im(mask)
     color_mask_im = Image.fromarray(color_mask)
     color_mask_im.show()
-    rgb_mask = (0.65*im + 0.35*color_mask).astype(np.uint8)
+    rgb_mask = (0.65*im_ + 0.35*color_mask).astype(np.uint8)
     rgb_mask_im = Image.fromarray(rgb_mask)
     rgb_mask_im.show()
+
+
+def get_visualizations(im: np.ndarray, mask_: np.ndarray) -> None:
+    im_ = im.copy()
+    mask = mask_.copy()
+    if im.shape[0] == 3:
+        im_ = np.transpose(im, (1, 2, 0))
+    color_mask = mask_to_color_im(mask)
+    color_mask_im = Image.fromarray(color_mask)
+    rgb_mask = (0.65*im_ + 0.35*color_mask).astype(np.uint8)
+    rgb_mask_im = Image.fromarray(rgb_mask)
+    return color_mask_im, rgb_mask_im
 
 
 def read_vid_frame_pairs(split: str) -> List[Tuple[str, int]]:
@@ -143,8 +164,18 @@ def rgb_channel_normalize(f: torch.Tensor) -> torch.Tensor:
     return f
 
 
+def rgb_channel_denormalize(f: torch.Tensor) -> torch.Tensor:
+    imagenet_means = [0.485, 0.456, 0.406]
+    imagenet_stds = [0.229, 0.224, 0.225]
+    f_ = f.clone()
+    for i in range(3):
+        f_[i, :, :] = (imagenet_stds[i]*f[i, :, :]) + imagenet_means[i]
+    f_ *= 255.0
+    return f_
+
+
 def interp_im_and_mask(im: torch.Tensor, mask: Optional[torch.Tensor],
-                       inter_shape: Tuple[int, int] = (300, 200)):
+                       inter_shape: Tuple[int, int]):
     im = torch.unsqueeze(im, dim=0)
     im = F.interpolate(im, size=inter_shape, mode="bilinear")[0]
     if mask is not None:
@@ -161,28 +192,31 @@ def get_loose_bb(bb: np.ndarray, h: int, w: int, padding: int = 5) -> np.ndarray
     return np.array([x_min, y_min, x_max, y_max], dtype=int)
 
 
+def pad_seg_mask(mask: torch.Tensor, pad_h: int, pad_w:int) -> torch.Tensor:
+    padded_mask = torch.zeros(size=(pad_h, pad_w), device=mask.device, dtype=mask.dtype)
+    original_h, original_w = mask.shape[:]
+    padded_mask[:original_h+1, :original_w+1] = mask
+    return mask
+
+
 class SurrealHumanSegDataset(Dataset):
     def __init__(self, split: str,
-                 with_masking: bool = False,
-                 with_cropping: bool = False,
-                 cropping_type: str = "bb",
+                 with_rgb_masking: bool = False,
+                 with_bb_cropping: bool = False,
                  interp_size: Optional[Tuple[int, int]] = None,
                  debug: bool = False,
                  load_to_RAM: bool = False,
                  ):
         super().__init__()
         assert split in ["train", "val", "test"], "invalid split"
-        if cropping_type is not None:
-            assert cropping_type in ["bb", "random"]
-        self.is_train = split == "train"
+        self.is_test = split not in ["train", "val"]
         self.split = split
-        self.with_masking = with_masking
-        self.with_cropping = with_cropping
-        self.cropping_type = cropping_type
+        self.with_rgb_masking = with_rgb_masking
+        self.with_bb_cropping = with_bb_cropping
         self.interp_size = interp_size
-        # A consistent size of segmentation masks and images is required
-        if not self.interp_size and self.with_cropping:
-            self.interp_size = (240, 320)
+        # A consistent size of segmentation masks and images is required at train time
+        if not self.interp_size and self.with_bb_cropping:
+            self.interp_size = [300, 200]
         self.vid_frame_fps = read_vid_frame_pairs(split)
         if debug:
             r.shuffle(self.vid_frame_fps)
@@ -207,7 +241,6 @@ class SurrealHumanSegDataset(Dataset):
                 is_loaded = True
 
         # read from videos
-
         """
         vid_fp = os.path.join(dataset_outer_fp, vid_fp[1:])
         vid_frame_original = vid_utils.get_frame_from_rgb_vid(vid_fp, frame_num)[0]  # shape H, W, 3
@@ -224,31 +257,24 @@ class SurrealHumanSegDataset(Dataset):
         # seg mask
         seg_mask = get_seg_mask(vid_fp, frame_num)
 
-        # sanity check
-        # visualize(vid_frame, seg_mask)
+        # sanity check, visualize the original data
+        #visualize(vid_frame_original, seg_mask)
 
         # preprocess rgb
         vid_frame = torch.tensor(vid_frame_original, dtype=torch.float).permute((-1, 0, 1)) / 255.0
         vid_frame = rgb_channel_normalize(vid_frame)
 
-        if self.with_masking:
-            zero_mask = torch.unsqueeze(seg_mask == 0, dim=0).repeat((3, 1, 1))
+        if self.with_rgb_masking:
+            zero_mask = torch.unsqueeze(torch.tensor(seg_mask, dtype=torch.long) != 0, dim=0).repeat((3, 1, 1))
             vid_frame = zero_mask * vid_frame
-        if self.with_cropping and self.is_train:
+        if self.with_bb_cropping:
             h, w = vid_frame.shape[1:]
-            if self.cropping_type == "bb":
+            if self.with_bb_cropping:
                 bb = get_person_bb(seg_mask)
-                if bb is None: # No person in the frame, execute random crop
-                    if self.is_train:
-                        x1 = r.randint(0, w // 2)
-                        x2 = r.randint(w // 2, w - 1)
-                        y1 = r.randint(0, h // 2)
-                        y2 = r.randint(h // 2, h - 1)
-                        bb = [x1, y1, x2, y2]
-                    else:
-                        bb = [0, 0, w-1, h-1] # entire image
+                if bb is None: # No person in the frame, take entire image
+                    bb = [0, 0, w-1, h-1]
                 else:
-                    if self.is_train:
+                    if not self.is_test:
                         bb = get_loose_bb(bb, h, w)
 
                 vid_frame = vid_frame[:, bb[1]:bb[3] + 1, bb[0]:bb[2] + 1]
@@ -258,23 +284,20 @@ class SurrealHumanSegDataset(Dataset):
                 #vid_frame_original_cropped = vid_frame_original[bb[1]:bb[3] + 1, bb[0]:bb[2] + 1, :]
                 #visualize(vid_frame_original_cropped, seg_mask)
 
-            else:
-                h, w = vid_frame.shape[1:]
-                x1 = r.randint(0, w // 2)
-                x2 = r.randint(w // 2, w - 1)
-                y1 = r.randint(0, h // 2)
-                y2 = r.randint(h // 2, h - 1)
-                bb = [x1, y1, x2, y2]
-                vid_frame = vid_frame[:, bb[1]:bb[3] + 1, bb[0]:bb[2] + 1]
-                seg_mask = seg_mask[bb[1]:bb[3] + 1, bb[0]:bb[2] + 1]
         seg_mask = torch.tensor(seg_mask, dtype=torch.long)
         if self.interp_size:
-            if (vid_frame.shape[1] != self.interp_size[0] or
-                    vid_frame.shape[2] != self.interp_size[1]):
-                if self.is_train:
+            if vid_frame.shape[1] != self.interp_size[0] or vid_frame.shape[2] != self.interp_size[1]:
+                if not self.is_test:
                     vid_frame, seg_mask = interp_im_and_mask(vid_frame, seg_mask, self.interp_size)
-                else:
+                else: # do not interpolate the ground truth seg mask
                     vid_frame, _ = interp_im_and_mask(vid_frame, None, self.interp_size)
+
+
+        # final sanity check, after all transforms, denormalize the rgb data and view the (possibly)
+        # interpolated image/mask pairs and overlays
+        #vid_frame_denormalized = rgb_channel_denormalize(vid_frame)
+        #visualize(vid_frame_denormalized.numpy().astype(np.uint8), seg_mask.numpy().astype(np.uint8))
+
         return vid_frame, seg_mask
 
 
@@ -338,11 +361,11 @@ def get_surreal_human_seg_dl(dl_kwargs, dataset_kwargs):
 if __name__ == "__main__":
     import tqdm
     time_d = {}
-    dl_kwargs = {"num_workers": 1, "batch_size": 1,
+    dl_kwargs = {"num_workers": 0, "batch_size": 1,
                  "shuffle": False, "drop_last": True,
                  "pin_memory": False, "persistent_workers": False}
-    dataset_kwargs = {"split": "train", "with_cropping": True,
-                      "cropping_type": "bb", "interp_size": None}
+    dataset_kwargs = {"split": "train", "with_bb_cropping": True,
+                      "interp_size": None, "with_rgb_masking": True}
     dl = get_surreal_human_seg_dl(dl_kwargs, dataset_kwargs)
     for data in tqdm.tqdm(dl):
         pass

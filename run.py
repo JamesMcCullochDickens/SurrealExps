@@ -46,14 +46,14 @@ def train_and_test(train_d: dict) -> None:
             print(f"Task {task} not supported.")
 
     if train_d["with_test"]:
-        seg_eval.seg_eval(train_d, is_val=False)
+        seg_eval.seg_eval(train_d, is_val=False, dl=None)
 
 
 if __name__ == "__main__":
     model_config_name = "LRASPP_rgb_seg.yml"
-    train_config_name = "human_seg_rgb_v2.yml"
-    with_load = False
-    only_test = False
+    train_config_name = "human_seg_rgb_v3.yml"
+    with_load = True
+    only_test = True
 
     # build model from config
     print("Building model from config.")

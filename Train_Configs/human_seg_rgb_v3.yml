@@ -1,12 +1,13 @@
 # dataloader arguments
 batch_size: 128
-num_workers: 14
+num_workers: 10
 persistent_workers: true
 pin_memory: true
 
 # dataset
 dataset_name: Surreal_Human_Segmentation
 with_bb_cropping: True
+with_rgb_masking: True
 interp_size: [300, 200]
 
 # optimizer

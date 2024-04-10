@@ -7,15 +7,13 @@ import Training.loss_functions as loss_functions
 def get_dataset(cfg: dict, dl_kwargs: dict, train_d: dict) -> None:
     dataset_name = cfg["dataset_name"]
     if dataset_name == "Surreal_Human_Segmentation":
-        with_masking = cfg.get("with_masking", False)
-        with_cropping = cfg.get("with_cropping", False)
-        cropping_type = cfg.get("cropping_type", None)
+        with_masking = cfg.get("with_rgb_masking", False)
+        with_bb_cropping = cfg.get("with_bb_cropping", False)
         interp_size = cfg.get("interp_size", None)
         load_to_RAM = cfg.get("load_to_ram", False)
         dl_kwargs["num_workers"] = 1 if load_to_RAM else dl_kwargs["num_workers"]
-        dataset_args = {"with_masking": with_masking, "with_cropping": with_cropping,
-                        "cropping_type": cropping_type, "interp_size": interp_size,
-                        "load_to_RAM": load_to_RAM}
+        dataset_args = {"with_rgb_masking": with_masking, "with_bb_cropping": with_bb_cropping,
+                        "interp_size": interp_size, "load_to_RAM": load_to_RAM}
         train_dataset_args, val_dataset_args, test_dataset_args = (dataset_args.copy(), dataset_args.copy(),
                                                                    dataset_args.copy())
         val_dl_kwargs = dl_kwargs.copy()
@@ -29,16 +27,17 @@ def get_dataset(cfg: dict, dl_kwargs: dict, train_d: dict) -> None:
         dl_kwargs["drop_last"] = True
         val_dl_kwargs["shuffle"] = False
         val_dl_kwargs["drop_last"] = False
-        val_dl_kwargs["batch_size"] = 16
-        val_dl_kwargs["num_workers"] = 10
+        val_dl_kwargs["batch_size"] = 32
+        val_dl_kwargs["num_workers"] = 8
         train_d["train_dl"] = sh_seg_dl.get_surreal_human_seg_dl(dl_kwargs, train_dataset_args)
         train_d["val_dl"] = sh_seg_dl.get_surreal_human_seg_dl(val_dl_kwargs, val_dataset_args)
 
         # test dataloader
         test_dl_kwargs["shuffle"] = False
         test_dl_kwargs["drop_last"] = False
-        test_dl_kwargs["batch_size"] = 16
-        test_dl_kwargs["num_workers"] = 10
+        test_dl_kwargs["batch_size"] = 1
+        test_dl_kwargs["num_workers"] = 8
+        test_dl_kwargs["persistent_workers"] = False
         test_dataset_args["interp_size"] = None
         train_d["test_dl"] = sh_seg_dl.get_surreal_human_seg_dl(test_dl_kwargs, test_dataset_args)
 
@@ -60,14 +59,14 @@ def get_optimizer(cfg: dict, train_d: dict) -> None:
     optimizer_name = cfg["optimizer_type"]
     if optimizer_name == "sgd":
         base_lr = cfg["base_lr"]
-        weight_decay = cfg["weight_decay"]
-        nesterov = cfg["nesterov"]
-        momentum = cfg["momentum"]
+        weight_decay = cfg.get("weight_decay", 0.00005)
+        nesterov = cfg.get("nesterov", True)
+        momentum = cfg.get("momentum", 0.90)
         optim = optimizers.get_sgd_optim(model=train_d["model"], base_lr=base_lr, weight_decay=weight_decay,
                                      nesterov=nesterov, momentum=momentum)
     elif optimizer_name == "adamw":
         base_lr = cfg["base_lr"]
-        weight_decay = cfg["weight_decay"]
+        weight_decay = cfg.get("weight_decay", 0.00005)
         optim = optimizers.get_adamw_optim(train_d["model"], base_lr=base_lr, weight_decay=weight_decay)
     else:
         print(f"Optimizer {optimizer_name} is not supported.")

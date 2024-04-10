@@ -1,7 +1,13 @@
-.idea/
-__pycache__/
+# files
 *.iml
 *.pyc
-/Trained_Models
-/Trainings_Logs
-/Eval_Results
+*.avi
+
+# folders
+.idea/
+__pycache__/
+Trained_Models
+Trainings_Logs
+Trianing_Logs
+Eval_Results
+Experiments to Run.txt

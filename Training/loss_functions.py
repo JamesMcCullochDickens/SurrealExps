@@ -28,10 +28,10 @@ class weighted_ce_loss(nn.Module):
 
 
 class sampled_ce_loss(nn.Module):
-    def __init__(self, samples_per_im: int = 5000, lambd: float = 2.5):
+    def __init__(self, samples_per_im: int = 5000, lambds_=(1/6, 5/6)):
         super().__init__()
         self.samples_per_im = samples_per_im
-        self.lambd = lambd
+        self.lambds_ = lambds_
 
     def forward(self, pred: torch.Tensor, gt: torch.Tensor) -> torch.Tensor:
         bs = pred.shape[0]
@@ -47,7 +47,7 @@ class sampled_ce_loss(nn.Module):
         num_samples = min(num_zero, num_non_zero, expected_samples)
 
         if num_samples:
-            zero_indices = torch.multinomial(1 - non_zero_mask_flat, num_samples, replacement=False)
+            zero_indices = torch.multinomial(1 - non_zero_mask_flat, num_samples//2, replacement=False)
             non_zero_indices = torch.multinomial(non_zero_mask_flat, num_samples, replacement=False)
 
             num_classes = pred.shape[1]
@@ -68,7 +68,7 @@ class sampled_ce_loss(nn.Module):
 
             loss1 = F.cross_entropy(pred1, gt_zero)
             loss2 = F.cross_entropy(pred2, gt_non_zero)
-            total_loss = loss1 + self.lambd*loss2
+            total_loss = self.lambds_[0]*loss1 + self.lambds_[1]*loss2
 
         else:
             total_loss = F.cross_entropy(pred, gt.long())

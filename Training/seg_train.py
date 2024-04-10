@@ -146,7 +146,7 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
             train_sampler.set_epoch(epoch_num)
         if rank == 0:
             print(
-                f"\nBegin training of epoch {epoch_num} with learning rate {round(optims.get_current_lr(optimizer), 7)}.")
+                f"\nBegin training of epoch {epoch_num} with learning rate {optims.get_current_lr(optimizer)}.")
             t1 = time.time()
         epoch_loss = 0.0
 
@@ -240,18 +240,18 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
 
         if with_train_accuracy:
             train_d["model"] = model
-            mIoU = seg_eval.seg_eval(train_d, train_dataloader)
             if rank == 0:
+                mIoU = seg_eval.seg_eval(train_d, is_val=True, dl=train_dataloader)
                 print(f"The mean IOU for epoch {epoch_num} on the training set is {mIoU}.\n")
                 train_accs_per_epoch.append(mIoU)
             model.train()
 
         # validate the model every sampling epoch after the starting epoch
         if val_dataloader:
-            if (epoch_num+1) >= starting_val_epoch:
+            if epoch_num >= starting_val_epoch:
                 if rank == 0:
                     train_d["model"] = model
-                    mIoU = seg_eval.seg_eval(train_d, val_dataloader)
+                    mIoU = seg_eval.seg_eval(train_d, is_val=True, dl=None)
                     print(f"The mean IOU for epoch {epoch_num} on the validation set is {mIoU} percent.\n")
                     test_epochs.append(epoch_num)
                     if mIoU > best_test_accuracy:
