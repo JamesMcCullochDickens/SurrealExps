@@ -26,12 +26,17 @@ def setup(rank: int, world_size: int) -> None:
 def train_launch(train_d: dict) -> None:
     num_gpus = torch.cuda.device_count()
     if train_d["with_ddp"] and num_gpus > 1:
-        world_size = num_gpus
-        world_size = 2 # override for my specific case
+        if "gpu_override" not in train_d.keys():
+            train_d["gpu_override"] = list(range(num_gpus))
+        world_size = len(train_d["gpu_override"])
         print("Spawning processes")
         dist_utils.spawn_processes(fn=seg_train, args=(train_d, world_size))
     else:
-       seg_train(rank=0, train_d=train_d, world_size=1)
+        if "gpu_override" in train_d.keys():
+            rank = train_d["gpu_override"][0]
+        else:
+            rank = 0
+        seg_train(rank=rank, train_d=train_d, world_size=1)
 
 
 def init_seed(seed: float = 1.0) -> None:
@@ -43,10 +48,13 @@ def init_seed(seed: float = 1.0) -> None:
     torch.backends.cudnn.benchmark = True
 
 
-def seg_train(rank: int, train_d: dict, world_size: int) ->None:
+def seg_train(rank: int, train_d: dict, world_size: int) -> None:
     if world_size > 1:
         setup(rank, world_size)
+        gpu_num = train_d["gpu_override"][rank]
         cpu_core_count = os.cpu_count()
+    else:
+        gpu_num = rank
     init_seed()
 
     # save fps
@@ -69,7 +77,7 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
 
     model = train_d["model"]
 
-    model.to(rank)
+    model.to(gpu_num)
     model.train()
 
     # loading from a previous training session
@@ -124,7 +132,7 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
                                       persistent_workers=num_workers > 0)
         # ddp
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        model = DDP(model, device_ids=[rank], output_device=rank,
+        model = DDP(model, device_ids=[gpu_num], output_device=gpu_num,
                     find_unused_parameters=False)
         if rank == 0:
             print("Finished getting distributed dataloaders and DDP model.")
@@ -139,27 +147,27 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
     if with_16_bit_training:
         scaler = torch.cuda.amp.GradScaler()
 
-    if rank == 0:
+    if rank == 0 or world_size == 1:
         overall_t1 = time.time()
     for epoch_num in range(epoch_num, num_epochs + 1):
+        model.train()
         if world_size > 1:
             train_sampler.set_epoch(epoch_num)
-        if rank == 0:
-            print(
-                f"\nBegin training of epoch {epoch_num} with learning rate {optims.get_current_lr(optimizer)}.")
+        if rank == 0 or world_size == 1:
+            print(f"\nBegin training of epoch {epoch_num} with learning rate {round(optims.get_current_lr(optimizer), 7)}.")
             t1 = time.time()
         epoch_loss = 0.0
 
         # only use tqdm for the process at rank 0
-        if rank == 0:
+        if rank == 0 or world_size == 1:
             enum_fn = tqdm.tqdm
         else:
             enum_fn = lambda x: x
 
         for batch_num, data in enumerate(enum_fn(train_dataloader)):
             optimizer.zero_grad(set_to_none=True)
-            x = data[0].to(rank)
-            labels = data[1].to(rank)
+            x = data[0].to(gpu_num)
+            labels = data[1].to(gpu_num)
 
             # model output and loss computation
             if with_16_bit_training:
@@ -204,18 +212,18 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
         lrs.step()
 
         # End of epoch stats
-        if rank == 0:
+        if rank == 0 or world_size == 1:
             t2 = time.time()
-            dif_in_mins = round((t2-t1)/60.0, 2)
+            dif_in_mins = round((t2 - t1) / 60.0, 2)
         ave_epoch_loss = round(epoch_loss / (batch_num + 1), 3)
         if world_size == 1:
             epoch_overall_losses.append(epoch_loss)
             epoch_average_losses.append(ave_epoch_loss)
-        else: # Passing DDP losses to rank 0
+        else:  # Passing DDP losses to rank 0
             if rank == 0:
                 for i in range(1, world_size):
-                    epoch_overall_loss_i = torch.zeros(1).to(rank)
-                    ave_epoch_loss_i = torch.zeros(1).to(rank)
+                    epoch_overall_loss_i = torch.zeros(1).to(gpu_num)
+                    ave_epoch_loss_i = torch.zeros(1).to(gpu_num)
                     req1 = dist.irecv(tensor=epoch_overall_loss_i, src=i)
                     req1.wait()
                     epoch_loss += epoch_overall_loss_i.cpu().item()
@@ -226,22 +234,22 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
                 epoch_overall_losses.append(epoch_loss)
                 epoch_average_losses.append(ave_epoch_loss)
             else:
-                epoch_overall_loss_i = torch.tensor(epoch_loss).to(rank)
-                ave_epoch_loss_i = torch.tensor(ave_epoch_loss).to(rank)
+                epoch_overall_loss_i = torch.tensor(epoch_loss).to(gpu_num)
+                ave_epoch_loss_i = torch.tensor(ave_epoch_loss).to(gpu_num)
                 req1 = dist.isend(tensor=epoch_overall_loss_i, dst=0)
                 req1.wait()
                 req2 = dist.isend(tensor=ave_epoch_loss_i, dst=0)
                 req2.wait()
 
-        if rank == 0:
+        if rank == 0 or world_size == 1:
             print(f"Epoch {epoch_num} is complete after {round(dif_in_mins, 2)} minutes")
             print(f"The average loss for epoch {epoch_num} is {round(ave_epoch_loss, 3)}")
             print(f"The overall loss for epoch {epoch_num} is {round(epoch_loss, 3)}")
 
         if with_train_accuracy:
             train_d["model"] = model
-            if rank == 0:
-                mIoU = seg_eval.seg_eval(train_d, is_val=True, dl=train_dataloader)
+            if rank == 0 or world_size == 1:
+                mIoU = seg_eval.seg_eval(train_d, is_val=True, dl=train_dataloader, device_id=gpu_num)
                 print(f"The mean IOU for epoch {epoch_num} on the training set is {mIoU}.\n")
                 train_accs_per_epoch.append(mIoU)
             model.train()
@@ -249,9 +257,9 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
         # validate the model every sampling epoch after the starting epoch
         if val_dataloader:
             if epoch_num >= starting_val_epoch:
-                if rank == 0:
+                if rank == 0 or world_size == 1:
                     train_d["model"] = model
-                    mIoU = seg_eval.seg_eval(train_d, is_val=True, dl=None)
+                    mIoU = seg_eval.seg_eval(train_d, is_val=True, dl=None, device_id=gpu_num)
                     print(f"The mean IOU for epoch {epoch_num} on the validation set is {mIoU} percent.\n")
                     test_epochs.append(epoch_num)
                     if mIoU > best_test_accuracy:
@@ -263,26 +271,26 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
                 model.train()
 
         # logging and model saving
-        if rank == 0:
+        if rank == 0 or world_size == 1:
             logs_dict = {"epoch_overall_losses": epoch_overall_losses, "epoch_average_losses": epoch_average_losses,
                          "iteration_losses": iteration_losses, "test_accuracy_vals": test_accuracy_vals,
                          "test_epochs": test_epochs, "best_test_accuracy": best_test_accuracy}
             # save the model and optimizer and number of epochs after each epoch
             if world_size == 1:
                 model_utils.save_model_during_training(epoch=epoch_num, model=model, optimizer=optimizer,
-                                                   lr_scheduler=lrs, logs_dict=logs_dict,
-                                                   save_path=model_save_fp)
+                                                       lr_scheduler=lrs, logs_dict=logs_dict,
+                                                       save_path=model_save_fp)
             else:
                 model_utils.save_model_during_training(epoch=epoch_num, model=model.module, optimizer=optimizer,
-                                                   lr_scheduler=lrs, logs_dict=logs_dict,
-                                                   save_path=model_save_fp)
+                                                       lr_scheduler=lrs, logs_dict=logs_dict,
+                                                       save_path=model_save_fp)
 
-    if rank == 0:
+    if rank == 0 or world_size == 1:
         overall_t2 = time.time()
         print(f"The overall training time is given by {round(overall_t2 - overall_t1, 2)} seconds.")
 
     # plotting
-    if rank == 0:
+    if rank == 0 or world_size == 1:
         print("S_Training is complete.")
         # plot logs fps
         save_fp_epoch_overall_loss = logs_save_fp + "/EpochOverallLosses"
@@ -294,17 +302,17 @@ def seg_train(rank: int, train_d: dict, world_size: int) ->None:
         # plots
         try:
             plot_utils.plot(x_vals=range(1, num_epochs + 1), y_vals=epoch_overall_losses,
-                         title=model_name + "\n Overall Epoch Loss", x_label="Epochs", y_label="Overall Loss",
-                         save_fp=save_fp_epoch_overall_loss)
+                            title=model_name + "\n Overall Epoch Loss", x_label="Epochs", y_label="Overall Loss",
+                            save_fp=save_fp_epoch_overall_loss)
             plot_utils.plot(x_vals=range(1, num_epochs + 1), y_vals=epoch_average_losses,
-                         title=model_name + "\n Average Epoch Loss", x_label="Epochs", y_label="Average Loss",
-                         save_fp=save_fp_epoch_average_loss)
+                            title=model_name + "\n Average Epoch Loss", x_label="Epochs", y_label="Average Loss",
+                            save_fp=save_fp_epoch_average_loss)
             plot_utils.plot(x_vals=range(1, len(iteration_losses) + 1), y_vals=iteration_losses,
-                         title=model_name + "\n Iterations vs. Loss", x_label="Iterations", y_label="Loss",
-                         save_fp=save_fp_iterations)
+                            title=model_name + "\n Iterations vs. Loss", x_label="Iterations", y_label="Loss",
+                            save_fp=save_fp_iterations)
             plot_utils.plot(x_vals=test_epochs, y_vals=test_accuracy_vals,
-                         title=model_name + "\n Epochs vs. Test Accuracy", x_label="Epochs", y_label="Test Accuracy",
-                         save_fp=save_fp_test_accuracy)
+                            title=model_name + "\n Epochs vs. Test Accuracy", x_label="Epochs", y_label="Test Accuracy",
+                            save_fp=save_fp_test_accuracy)
             if with_train_accuracy:
                 plot_utils.plot(x_vals=range(1, num_epochs + 1), y_vals=train_accs_per_epoch,
                                 title=model_name + "\n Epochs vs. Train Accuracy", x_label="Epochs",

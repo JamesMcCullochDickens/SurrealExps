@@ -56,7 +56,9 @@ def display_pc(pc, depth_filter_val=None):
       o3d.visualization.draw_geometries([pcd, coordinate_frame])
 
 
+"""
 m1 = m_proc.get_depth_ims(m_proc.load_mat(m_proc.sample_depth_mat_fp))[0]
 unique_vals = np.unique(m1)
 pc = depth_map_to_pc(m1)
 display_pc(pc, np.max(pc[:, :, -1]))
+"""

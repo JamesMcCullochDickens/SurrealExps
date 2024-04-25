@@ -184,6 +184,19 @@ def interp_im_and_mask(im: torch.Tensor, mask: Optional[torch.Tensor],
     return im, mask
 
 
+def preprocess_im(im_fp: str, crop_bb: list,
+                  interp_size: tuple = (300, 200)) -> torch.Tensor:
+    im_arr = np.asarray(Image.open(im_fp))
+    im_arr = np.transpose(im_arr, (-1, 0, 1))
+    im_arr = torch.tensor(im_arr, dtype=torch.float)
+    im_arr = im_arr[:, crop_bb[1]:crop_bb[3]+1, crop_bb[0]:crop_bb[2]+1]
+    im_arr *= (1.0/255.0)
+    im_arr = rgb_channel_normalize(im_arr)
+    im_arr = torch.unsqueeze(im_arr, dim=0)
+    im_arr = F.interpolate(im_arr, size=(interp_size), mode="bilinear")
+    return im_arr
+
+
 def get_loose_bb(bb: np.ndarray, h: int, w: int, padding: int = 5) -> np.ndarray:
     x_min = max(bb[0]-padding, 0)
     y_min = max(bb[1]-padding, 0)
@@ -216,7 +229,7 @@ class SurrealHumanSegDataset(Dataset):
         self.interp_size = interp_size
         # A consistent size of segmentation masks and images is required at train time
         if not self.interp_size and self.with_bb_cropping:
-            self.interp_size = [300, 200]
+            self.interp_size = (300, 200)
         self.vid_frame_fps = read_vid_frame_pairs(split)
         if debug:
             r.shuffle(self.vid_frame_fps)

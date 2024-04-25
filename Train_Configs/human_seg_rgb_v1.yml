@@ -1,17 +1,20 @@
 # dataloader arguments
 batch_size: 128
-num_workers: 12
+num_workers: 10
 persistent_workers: true
+pin_memory: true
 
 # dataset
 dataset_name: Surreal_Human_Segmentation
+with_bb_cropping: True
+with_rgb_masking: True
+interp_size: [300, 200]
 
 # optimizer
 optimizer_type: sgd
 base_lr: 0.01
 weight_decay: 0.00005
-nesterov: true
-momentum: 0.90
+
 
 # learning rate scheduler
 lrs_scheduler: cosine_annealing
@@ -23,10 +26,12 @@ ignore_index: 0
 
 # training info
 with_ddp: true
-num_epochs: 30
+num_epochs: 10
 with_validation: true
 with_train_accuracy: false
 starting_val_epoch: 1
+with_16_bit_precision: true
 
 # testing info
 with_test: true
+test_background: false

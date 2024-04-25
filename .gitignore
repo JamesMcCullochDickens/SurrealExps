@@ -2,6 +2,7 @@
 *.iml
 *.pyc
 *.avi
+*.pt
 
 # folders
 .idea/

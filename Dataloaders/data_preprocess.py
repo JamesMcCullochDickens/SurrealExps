@@ -87,4 +87,3 @@ def write_surreal_dataset_frames() -> None:
 
 if __name__ == "__main__":
     write_surreal_dataset_frames()
-

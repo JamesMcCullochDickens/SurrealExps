@@ -2,12 +2,20 @@ import warnings
 warnings.filterwarnings('ignore')
 import data
 import os
+import numpy as np
+np.set_printoptions(suppress=True)
+import torch
+torch.set_printoptions(sci_mode=False)
+import argparse
+import ast
+
 import General_Utils.path_utils as p_utils
 import Models.model_builder as model_builder
 import General_Utils.read_yaml as read_yaml
 import Training.train_builder as train_builder
 import Training.seg_train as seg_train
 import Evaluation.seg_eval as seg_eval
+
 
 model_configs_outer_path = os.path.join(os.environ["cwd"], "Model_Configs")
 train_configs_outer_path = os.path.join(os.environ["cwd"], "Train_Configs")
@@ -46,14 +54,44 @@ def train_and_test(train_d: dict) -> None:
             print(f"Task {task} not supported.")
 
     if train_d["with_test"]:
-        seg_eval.seg_eval(train_d, is_val=False, dl=None)
+        if "gpu_override" in train_d:
+            gpu_id = train_d["gpu_override"][0]
+        else:
+            gpu_id = 0
+        seg_eval.seg_eval(train_d, is_val=False, dl=None, device_id=gpu_id)
+
+
+def parse_indices(indices_str: str) -> list[int]:
+    try:
+        indices = ast.literal_eval(indices_str)
+        if not isinstance(indices, list):
+            raise argparse.ArgumentTypeError('Indices must be in list format, e.g., [1, 2, 3]')
+        if not all(isinstance(idx, int) for idx in indices):
+            raise argparse.ArgumentTypeError('Indices must be integers')
+        return indices
+    except (ValueError, SyntaxError):
+        raise argparse.ArgumentTypeError('Invalid format for indices. Please use list format, e.g., [1, 2, 3]')
+
+
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Parsing arguments for the Pose Experiments run.py file.")
+    parser.add_argument("model_config_name", type=str, help="Name of the model configuration")
+    parser.add_argument("train_config_name", type=str, help="Name of the train configuration")
+    parser.add_argument("--with_load", action="store_true", help="Include if you want to load a model")
+    parser.add_argument("--only_test", action="store_true", help="Include if you only want to perform testing")
+    parser.add_argument("--gpu_override", nargs='?', type=parse_indices, help='List of gpus in list format, '
+                                                                              'e.g., [0,1,2], without whitespace, or surrounded'
+                                                                              'by quotes.')
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    model_config_name = "LRASPP_rgb_seg.yml"
-    train_config_name = "human_seg_rgb_v3.yml"
-    with_load = True
-    only_test = True
+    args = parse_arguments()
+    model_config_name = args.model_config_name
+    train_config_name = args.train_config_name
+    with_load = args.with_load
+    only_test = args.only_test
+    gpu_override = args.gpu_override
 
     # build model from config
     print("Building model from config.")
@@ -86,4 +124,6 @@ if __name__ == "__main__":
     train_d["only_test"] = only_test
 
     print("Finished loading the training config and dataloader.")
+    if gpu_override:
+        train_d["gpu_override"] = gpu_override
     train_and_test(train_d)
