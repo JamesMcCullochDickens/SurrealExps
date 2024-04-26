@@ -8,7 +8,7 @@ Run install.sh, tested on PyTorch version 2.2.2, torchvision version 0.17.2, Cud
 is only necessary for in the wild inference.
 
 # Data Pre-Processing
-The data can be downloaded here: https://www.di.ens.fr/willow/research/surreal/
+The Surreal Dataset can be downloaded here: https://www.di.ens.fr/willow/research/surreal/
 
 Write the path of the original data in the first line of Dataset_Location.txt.
 The second line of that file should be where you want to save individual frames
