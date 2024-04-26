@@ -37,7 +37,7 @@ GPU training, I recommend a batch size of 64 images and 16-bit mixed precision t
 
 # Sample in the wild inference
 With Yolov8 instance segmentation and DeepLabv3-Resnet101 part segmentation ...
-![img_4.png](img_4.png)
+![img_4.png](Sample_Eval_Ims/img_4.png)
 
 # Citations
 Please cite the Surreal dataset if you end up using any of this in a paper. 
