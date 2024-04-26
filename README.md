@@ -20,7 +20,8 @@ in ~/Dataloaders/data_preprocess.py, or just use the included video frame pair t
 
 # Training and Inference:
 Run train_rgb.sh, adjusting gpus used with the --gpu_override flag. I used 2 gpus with 24 GB of VRAM, and a batch size of 128. For single
-GPU training, I recommend a batch size of 64 images and 16-bit mixed precision training.  
+GPU training, I recommend a batch size of 64 images and 16-bit mixed precision training.  I do not evaluate performance on the background class,
+I assume that the model is input with a cropped/masked image of a person, hence the use of Yolov8 instance segmentation for in the wild inference.
 
 # Eval Results
 | Model | LR ASPP | DeepLabv3-ResNet50 | DeepLabv3-ResNet101 |
