@@ -42,11 +42,10 @@ With Yolov8 instance segmentation and DeepLabv3-Resnet101 part segmentation ...
 # Citations
 Please cite the Surreal dataset if you end up using any of this in a paper. 
 
-
+```bibtex
 @INPROCEEDINGS{varol17_surreal,
   title     = {Learning from Synthetic Humans},
-  author    = {Varol, G{\"u}l and Romero, Javier and Martin, Xavier and Mahmood, Naureen and Black, Michael J. and Laptev, Ivan and Schmid, Cordelia},
+  author    = {Varol, Gül and Romero, Javier and Martin, Xavier and Mahmood, Naureen and Black, Michael J. and Laptev, Ivan and Schmid, Cordelia},
   booktitle = {CVPR},
   year      = {2017}
 }
-
