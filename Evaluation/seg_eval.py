@@ -18,17 +18,8 @@ from Dataloaders import mat_proc
 NUM_VISUALIZATION_IMAGES = 100
 in_the_wild_ims_outer_fp = os.path.join(os.environ["cwd"], "Dataloaders/In_The_Wild_Images")
 
-images_fp = "/home/james/SurrealExps/Sample_Eval_Ims"
-for fp in os.listdir(images_fp):
-    fp_ = os.path.join(images_fp, fp)
-    im = Image.open(fp_)
-    im = im.resize(size=(320, 320), resample=Image.BILINEAR)
-    im.save(fp_)
-debug = "debug"
 
-
-
-def to_pct(f):
+def to_pct(f: float) -> float:
     return round(100 * f, 1)
 
 
