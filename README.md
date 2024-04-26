@@ -4,7 +4,7 @@ This repository contains PyTorch code to train and evaluate the built-in TorchVi
 on the Surreal dataset, for the models LRASPP, DeepLabv3 with Resnet50 and Resnet101 backbones. 
 
 # Installation
-Run install.sh, tested on PyTorch version 2.2.2, torchvision version 0.17.2, Cuda 12.1, and python 3.10. The ultralytics is only
+Run install.sh, tested on PyTorch version 2.2.2, torchvision version 0.17.2, Cuda 12.1, and python 3.10. The ultralytics package
 package is only necessary for in the wild inference.
 
 # Data Pre-Processing
