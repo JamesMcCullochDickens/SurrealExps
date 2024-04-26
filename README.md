@@ -29,7 +29,7 @@ GPU training, I recommend a batch size of 64 images and 16-bit mixed precision t
 | Pixel Accuracy (%) | 89.9 | 94.0               | 94.4                |
 
 
-# Sample test set inference: DeepLabv3-Resnet101
+# Sample test set inference: DeepLabv3-ResNet101
 ![img.png](Sample_Eval_Ims/img.png)
 ![img_1.png](Sample_Eval_Ims/img_1.png)
 ![img_2.png](Sample_Eval_Ims/img_2.png)
