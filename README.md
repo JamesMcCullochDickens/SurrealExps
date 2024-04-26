@@ -1,7 +1,7 @@
 # SurrealExps
 
 This repository contains PyTorch code to train and evaluate the built-in TorchVision models for segmentation for the task of human parsing/part segmentation
-on the Surreal dataset. The models used are LRASPP, and DeepLabv3 with Resnet50 and Resnet101 backbones. 
+on the Surreal dataset. The models used are LRASPP, and DeepLabv3 with ResNet50 and ResNet101 backbones. 
 
 # Installation
 Run install.sh, tested on PyTorch version 2.2.2, torchvision version 0.17.2, Cuda 12.1, and python 3.10. The ultralytics package
@@ -23,10 +23,10 @@ Run train_rgb.sh, adjusting gpus used with the --gpu_override flag. I used 2 gpu
 GPU training, I recommend a batch size of 64 images and 16-bit mixed precision training.  
 
 # Eval Results
-| Model | LR ASPP | DeepLabv3-Resnet50 | DeepLabv3-Resnet101 |
-|---|---|---|---|
-| Mean IoU (%) | 73.4 | 84.0 | 85.0|
-| Pixel Accuracy (%) | 89.9 | 94.0 | 94.4|
+| Model | LR ASPP | DeepLabv3-ResNet50 | DeepLabv3-ResNet101 |
+|---|---|--------------------|---------------------|
+| Mean IoU (%) | 73.4 | 84.0               | 85.0                |
+| Pixel Accuracy (%) | 89.9 | 94.0               | 94.4                |
 
 
 # Sample test set inference: DeepLabv3-Resnet101
