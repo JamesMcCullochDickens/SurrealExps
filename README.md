@@ -30,10 +30,10 @@ GPU training, I recommend a batch size of 64 images and 16-bit mixed precision t
 
 
 # Sample testing dataset inference images with DeepLabv3-Resnet101
-![img.png](img.png)
-![img_1.png](img_1.png)
-![img_2.png](img_2.png)
-![img_3.png](img_3.png)
+![img.png](Sample_Eval_Ims/img.png)
+![img_1.png](Sample_Eval_Ims/img_1.png)
+![img_2.png](Sample_Eval_Ims/img_2.png)
+![img_3.png](Sample_Eval_Ims/img_3.png)
 
 # Sample in the wild inference
 With Yolov8 instance segmentation and DeepLabv3-Resnet101 part segmentation ...
