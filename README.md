@@ -19,7 +19,7 @@ Rather than decode videos during training/inference you can write your own vid_f
 or just use the included video frame pair text files in ~/Dataloaders/vid_fp_frame_pairs/. 
 
 Afterwards, run write_surreal_dataset_frames() 
-in Dataloaders/data_preprocess.py to write the frames needed for training. You may need to update
+in ~/Dataloaders/data_preprocess.py to write the frames needed for training. You may need to update
 the number of processes you use according to your CPU specs.
 
 # Training and Inference:
