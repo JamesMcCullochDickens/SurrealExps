@@ -30,8 +30,8 @@ def create_artifact_paths(model_dir, with_delete,
     p_utils.create_if_not_exists(trained_models_fp, with_delete=with_delete)
 
     # training logs
-    training_logs_outer_fp = os.path.join(outer_path, "Trainings_Logs")
-    training_logs_fp = os.path.join(outer_path, "Trainings_Logs", model_dir)
+    training_logs_outer_fp = os.path.join(outer_path, "Training_Logs")
+    training_logs_fp = os.path.join(outer_path, "Training_Logs", model_dir)
     p_utils.create_if_not_exists(training_logs_outer_fp, with_delete=False)
     p_utils.create_if_not_exists(training_logs_fp, with_delete=with_delete)
 

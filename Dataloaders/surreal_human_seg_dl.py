@@ -104,15 +104,18 @@ def get_part_color_map() -> dict:
     return color_d
 
 
-def mask_to_color_im(mask: np.ndarray) -> np.ndarray:
+def mask_to_color_im(mask: np.ndarray, is_binary: bool) -> np.ndarray:
     color_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
-    color_d = get_part_color_map()
-    unique_vals = np.unique(mask)
-    for val in unique_vals:
-        if val == 0:
-            continue
-        spatial_mask = mask == val
-        color_mask[spatial_mask, :] = color_d[val]
+    if not is_binary:
+        color_d = get_part_color_map()
+        unique_vals = np.unique(mask)
+        for val in unique_vals:
+            if val == 0:
+                continue
+            spatial_mask = mask == val
+            color_mask[spatial_mask, :] = color_d[val]
+    else:
+        color_mask[mask == 1] = 255
     return color_mask
 
 

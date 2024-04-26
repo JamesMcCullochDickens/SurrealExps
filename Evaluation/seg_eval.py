@@ -67,7 +67,6 @@ def seg_eval(eval_d: dict, is_val: bool,
     model.eval()
     model.to(device_id)
 
-
     if is_val and not dl:
         test_dl = eval_d["val_dl"]
     elif not is_val and not dl:
@@ -91,6 +90,7 @@ def seg_eval(eval_d: dict, is_val: bool,
 
     num_ims = 0
 
+    """
     for data in tqdm.tqdm(test_dl):
         ims = data[0].to(device_id)
         gt = data[1].to(device_id)  # (Batch_Size, Height, Width)
@@ -177,6 +177,7 @@ def seg_eval(eval_d: dict, is_val: bool,
         results_fp = os.path.join(eval_save_path, "class_results.txt")
         cached_dict_utils.write_readable_cached_dict(results_fp, eval_results)
 
+    """
     if with_visualization:
         num_ims_visualized = 0
         print(f"Writing visualization images of model output")
@@ -207,7 +208,7 @@ def seg_eval(eval_d: dict, is_val: bool,
                 pred_mask *= zero_mask
                 gt_seg_mask = gt_seg_mask.reshape((h, w)).numpy().astype(np.uint8)
                 pred_mask = pred_mask.reshape((h, w)).numpy().astype(np.uint8)
-                vis_utils.save_model_pred_ims(im_denormalized, pred_mask, gt_seg_mask, save_fp)
+                vis_utils.save_model_pred_ims(im_denormalized, pred_mask, gt_seg_mask, False, save_fp)
                 num_ims_visualized += 1
 
             if num_ims_visualized >= NUM_VISUALIZATION_IMAGES:
@@ -243,5 +244,5 @@ def in_the_wild_inference(model: torch.nn.Module, outer_save_fp: str, device_id:
             pred_mask *= zero_mask
             gt_seg_mask = gt_seg_mask.reshape((h, w)).numpy().astype(np.uint8)
             pred_mask = pred_mask.reshape((h, w)).numpy().astype(np.uint8)
-            vis_utils.save_model_pred_ims(original_im_arr_cropped, pred_mask, gt_seg_mask, save_fp)
+            vis_utils.save_model_pred_ims(original_im_arr_cropped, pred_mask, gt_seg_mask, True, save_fp)
             c += 1

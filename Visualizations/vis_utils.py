@@ -4,9 +4,9 @@ import Dataloaders.surreal_human_seg_dl as sh_seg_dl
 
 
 def save_model_pred_ims(original_im: np.ndarray, pred_mask: np.ndarray,
-                        gt_mask: np.ndarray, save_fp: str) -> np.ndarray:
-    seg_pred_color_im = sh_seg_dl.mask_to_color_im(pred_mask)
-    seg_gt_color_im = sh_seg_dl.mask_to_color_im(gt_mask)
+                        gt_mask: np.ndarray, is_binary: bool, save_fp: str) -> np.ndarray:
+    seg_pred_color_im = sh_seg_dl.mask_to_color_im(pred_mask, False)
+    seg_gt_color_im = sh_seg_dl.mask_to_color_im(gt_mask, is_binary)
     if original_im.shape[-1] != 3:
         original_im_ = np.transpose(original_im, (1, 2, 0))
     else:
