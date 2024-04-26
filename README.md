@@ -18,15 +18,26 @@ Rather than decode videos during training/inference you can write your own vid_f
 or just use the included video frame pairs. Then you should run write_surreal_dataset_frames() in Dataloaders/data_preprocess.py to write
 the frames needed for training.
 
-
 # Training and Inference:
 Run train_rgb.sh, adjusting gpus used with the --gpu_override flag. I use 2 gpus with 24 GB of VRAM, and a batch size of 128. For single
 GPU training, I recommend a batch size of 64 images and 16-bit mixed precision training.  
 
 # Eval Results
+| Model | LR ASPP | DeepLabv3-Resnet50 | DeepLabv3-Resnet101 |
+|---|---|---|
+| Mean IoU (%) | 73.4 | 84.0 | 85.0|
+| Pixel Accuracy (%) | 89.9 | 94.0 | 94.4|
 
 
+# Sample testing dataset inference images with DeepLabv3-Resnet101
+![img.png](img.png)
+![img_1.png](img_1.png)
+![img_2.png](img_2.png)
+![img_3.png](img_3.png)
 
+# Sample in the wild inference
+With Yolov8 instance segmentation and DeepLabv3-Resnet101 part segmentation ...
+![img_4.png](img_4.png)
 
 # Citations
 Please cite the Surreal dataset if you end up using any of this in a paper. 
