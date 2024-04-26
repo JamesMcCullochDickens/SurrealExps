@@ -15,8 +15,8 @@ The second line of that file should be where you want to save individual frames
 for training/validation/testing. 
 
 I do not use the entire dataset, but roughly about 1/15 of the total number of frames.
-Rather than decode videos during training/inference you can write your own vid_frame pairs using get_vid_frame_pairs(...) in data_preprocess.py, 
-or just use the included video frame pair text files in ~/Dataloaders/vid_fp_frame_pairs/. 
+Rather than decode videos during training/inference you can write your own vid_frame pairs using get_vid_frame_pairs(...) 
+in ~/Dataloaders/data_preprocess.py, or just use the included video frame pair text files in ~/Dataloaders/vid_fp_frame_pairs/. 
 
 Afterwards, run write_surreal_dataset_frames() 
 in ~/Dataloaders/data_preprocess.py to write the frames to the train/test/val folders. You may need to update
