@@ -23,7 +23,7 @@ in ~/Dataloaders/data_preprocess.py to write the frames needed for training. You
 the number of processes you use according to your CPU specs.
 
 # Training and Inference:
-Run train_rgb.sh, adjusting gpus used with the --gpu_override flag. I use 2 gpus with 24 GB of VRAM, and a batch size of 128. For single
+Run train_rgb.sh, adjusting gpus used with the --gpu_override flag. I used 2 gpus with 24 GB of VRAM, and a batch size of 128. For single
 GPU training, I recommend a batch size of 64 images and 16-bit mixed precision training.  
 
 # Eval Results
