@@ -24,7 +24,7 @@ GPU training, I recommend a batch size of 64 images and 16-bit mixed precision t
 
 # Eval Results
 | Model | LR ASPP | DeepLabv3-Resnet50 | DeepLabv3-Resnet101 |
-|---|---|---|
+|---|---|---|---|
 | Mean IoU (%) | 73.4 | 84.0 | 85.0|
 | Pixel Accuracy (%) | 89.9 | 94.0 | 94.4|
 
