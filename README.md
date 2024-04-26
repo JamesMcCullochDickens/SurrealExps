@@ -5,7 +5,7 @@ on the Surreal dataset, for the models LRASPP, DeepLabv3 with Resnet50 and Resne
 
 # Installation
 Run install.sh, tested on PyTorch version 2.2.2, torchvision version 0.17.2, Cuda 12.1, and python 3.10. The ultralytics package
-package is only necessary for in the wild inference.
+is only necessary for in the wild inference.
 
 # Data Pre-Processing
 The data can be downloaded here: https://www.di.ens.fr/willow/research/surreal/
