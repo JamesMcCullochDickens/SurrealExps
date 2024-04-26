@@ -19,7 +19,7 @@ NUM_VISUALIZATION_IMAGES = 100
 in_the_wild_ims_outer_fp = os.path.join(os.environ["cwd"], "Dataloaders/In_The_Wild_Images")
 
 
-def to_pct(f):
+def to_pct(f: float) -> float:
     return round(100 * f, 1)
 
 
@@ -88,7 +88,7 @@ def seg_eval(eval_d: dict, is_val: bool,
 
     num_ims = 0
 
-    """
+
     for data in tqdm.tqdm(test_dl):
         ims = data[0].to(device_id)
         gt = data[1].to(device_id)  # (Batch_Size, Height, Width)
@@ -175,7 +175,7 @@ def seg_eval(eval_d: dict, is_val: bool,
         results_fp = os.path.join(eval_save_path, "class_results.txt")
         cached_dict_utils.write_readable_cached_dict(results_fp, eval_results)
 
-    """
+
     if with_visualization:
         num_ims_visualized = 0
         print(f"Writing visualization images of model output")
