@@ -1,9 +1,10 @@
 import data
-import vid_utils as vid_utils
 import os
-import numpy as np
 import glob
+
 from PIL import Image
+
+import vid_utils as vid_utils
 
 dataset_outer_fp = data.dataset_outer_fp
 

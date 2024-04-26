@@ -1,23 +1,26 @@
 import data
 import os
+import random as r
+import math
+from typing import List, Tuple, Optional
+import time
+import multiprocessing
+
 from PIL import Image
 import numpy as np
 import glob
 import torch
 from torch.utils.data import Dataset, DataLoader
-from mat_proc import get_seg_mask_at_frame, get_person_bb
-from typing import List, Tuple, Optional
 import torch.nn.functional as F
-import random as r
-import math
+import tqdm
+
+from Dataloaders.mat_proc import get_seg_mask_at_frame, get_person_bb
 import General_Utils.cached_dict_utils as cached_dict_utils
-import multiprocessing
 import General_Utils.RAM_utils as RAM_utils
-import time
 
 dataset_outer_fp = data.dataset_outer_fp
+frame_outer_fp = data.frames_outer_fp
 cwd = os.environ["cwd"]
-frame_outer_fp = "/media/H/Surreal_Dataset_Frames"
 
 sorted_parts = ['background', 'hips', 'leftUpLeg', 'rightUpLeg', 'spine', 'leftLeg', 'rightLeg',
                 'spine1', 'leftFoot', 'rightFoot', 'spine2', 'leftToeBase', 'rightToeBase',
@@ -69,11 +72,6 @@ def load_ims_to_RAM(vid_fp_pairs: list, split: str,
                 if load > max_load:
                     print(f"Load factor exceeded at {len(ims_d.keys())} images loaded in RAM.")
                     break
-
-        """
-        for res in results[i + 1:]:
-            res.get()
-        """
     t2 = time.time()
     print(f"Loaded {len(ims_d.keys())} images in {round(t2-t1, 3)} seconds.")
     return ims_d
@@ -134,7 +132,7 @@ def visualize(im: np.ndarray, mask_: np.ndarray) -> None:
     rgb_mask_im.show()
 
 
-def get_visualizations(im: np.ndarray, mask_: np.ndarray) -> None:
+def get_visualizations(im: np.ndarray, mask_: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     im_ = im.copy()
     mask = mask_.copy()
     if im.shape[0] == 3:
@@ -375,6 +373,7 @@ def get_surreal_human_seg_dl(dl_kwargs, dataset_kwargs):
 
 
 if __name__ == "__main__":
+    """
     import tqdm
     time_d = {}
     dl_kwargs = {"num_workers": 0, "batch_size": 1,
@@ -384,4 +383,6 @@ if __name__ == "__main__":
                       "interp_size": None, "with_rgb_masking": True}
     dl = get_surreal_human_seg_dl(dl_kwargs, dataset_kwargs)
     for data in tqdm.tqdm(dl):
-        pass
+        ...
+    """
+    ...

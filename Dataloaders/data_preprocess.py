@@ -1,16 +1,17 @@
 import data
-import Dataloaders.surreal_human_seg_dl as sh_seg_dl
-import numpy as np
-import vid_utils
 import os
+from multiprocessing.pool import ThreadPool
+
+import numpy as np
 from PIL import Image
 from tqdm import tqdm
-from multiprocessing.pool import ThreadPool
+
+from Video_Utils import vid_utils
+import Dataloaders.surreal_human_seg_dl as sh_seg_dl
 
 dataset_outer_fp = sh_seg_dl.dataset_outer_fp
 cwd = data.cwd
-
-frame_outer_save_fp = "/media/H/Surreal_Dataset_Frames"
+frame_outer_save_fp = data.frames_outer_fp
 splits = ["train", "test", "val"]
 for split in splits:
     outer_fp = os.path.join(frame_outer_save_fp, split)
@@ -65,7 +66,6 @@ def write_frames(vid_frame_pair: tuple) -> None:
     vid_frame = vid_utils.get_frame_from_rgb_vid(vid_fp_, frame_num)[0]
     vid_frame_im = Image.fromarray(vid_frame)
     vid_frame_im.save(save_vid_fp)
-    return None
 
 
 def write_surreal_dataset_frames() -> None:

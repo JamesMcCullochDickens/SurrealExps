@@ -1,7 +1,6 @@
 #  See:
 #  https://github.com/gulvarol/surreal/blob/master/datageneration/misc/3Dto2D/getExtrinsicBlender.m
 
-import mat_proc as m_proc
 import numpy as np
 import open3d as o3d
 
