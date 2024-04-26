@@ -1,6 +1,6 @@
 # SurrealExps
 
-This repository contains PyTorch code to train and evaluate the built-in TorchVision models for segmentation on the task of human parsing/part segmentation
+This repository contains PyTorch code to train and evaluate the built-in TorchVision models for segmentation for the task of human parsing/part segmentation
 on the Surreal dataset, for the models LRASPP, DeepLabv3 with Resnet50 and Resnet101 backbones. 
 
 # Installation
